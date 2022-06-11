@@ -1,6 +1,7 @@
 package net.earthmc.restorechunk;
 
 import net.earthmc.restorechunk.command.RestoreChunkCommand;
+import net.earthmc.restorechunk.command.RestoreEntitiesCommand;
 import net.earthmc.restorechunk.command.RestoreEntitiesCommand.ItemEntry;
 import net.earthmc.restorechunk.listener.InventoryListener;
 import net.kyori.adventure.text.Component;
@@ -13,7 +14,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
-import org.bukkit.event.Listener;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -67,7 +67,7 @@ public final class RestoreChunkPlugin extends JavaPlugin {
             return;
         }
 
-        //getCommand("restoreentities").setExecutor(new RestoreEntitiesCommand(this));
+        getCommand("restoreentities").setExecutor(new RestoreEntitiesCommand(this));
         getCommand("restorechunk").setExecutor(new RestoreChunkCommand(this));
         Bukkit.getPluginManager().registerEvents(new InventoryListener(this), this);
     }

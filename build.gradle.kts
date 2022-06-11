@@ -2,6 +2,7 @@ plugins {
     java
     `maven-publish`
     id("io.papermc.paperweight.userdev") version "1.3.6"
+    id("xyz.jpenilla.run-paper") version "1.0.6"
 }
 
 repositories {
@@ -27,6 +28,10 @@ java.sourceCompatibility = JavaVersion.VERSION_17
 tasks {
     build {
         dependsOn(reobfJar)
+    }
+
+    runServer {
+        minecraftVersion("1.18.2")
     }
 
     compileJava {

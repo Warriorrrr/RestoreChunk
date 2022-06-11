@@ -1,14 +1,18 @@
 package net.earthmc.restorechunk.command;
 
+import ca.spottedleaf.dataconverter.minecraft.MCDataConverter;
+import ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry;
 import net.earthmc.restorechunk.RestoreChunkPlugin;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.chunk.storage.EntityStorage;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.Command;
@@ -62,6 +66,8 @@ public class RestoreEntitiesCommand implements CommandExecutor {
                 sender.sendMessage(Component.text("Could not find any entities to restore for this chunk.", NamedTextColor.RED));
                 return;
             }
+
+            compoundTag = MCDataConverter.convertTag(MCTypeRegistry.ENTITY_CHUNK, compoundTag, EntityStorage.getVersion(compoundTag), SharedConstants.getCurrentVersion().getDataVersion().getVersion());
 
             List<ItemEntry> entries = new ArrayList<>();
             for (Tag tag : compoundTag.getList("Entities", 10)) {

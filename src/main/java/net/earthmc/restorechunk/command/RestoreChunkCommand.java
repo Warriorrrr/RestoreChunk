@@ -9,6 +9,8 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
+import net.minecraft.server.level.ChunkMap;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunkSection;
@@ -21,10 +23,12 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.craftbukkit.v1_18_R2.CraftWorld;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -74,6 +78,17 @@ public class RestoreChunkCommand implements CommandExecutor {
                 return;
             }
 
+            ServerLevel level = ((CraftWorld) player.getWorld()).getHandle();
+            ChunkMap chunkMap = level.getChunkSource().chunkMap;
+
+            try {
+                compoundTag = chunkMap.upgradeChunkTag(level.getTypeKey(), chunkMap.overworldDataStorage, compoundTag, chunkMap.generator.getTypeNameForDataFixer(), pos, level);
+            } catch (IOException e) {
+                player.sendMessage(Component.text("An exception occurred when upgrading chunk tag: " + e.getMessage()));
+                logger.error("An exception occurred when upgrading chunk tag", e);
+                return;
+            }
+
             List<LevelChunkSection> chunkSections = new ArrayList<>();
 
             for (Tag tag : compoundTag.getList("sections", 10)) {
@@ -81,11 +96,11 @@ public class RestoreChunkCommand implements CommandExecutor {
                 byte y = sectionData.getByte("Y");
 
                 if (sectionData.contains("block_states", 10)) {
-                    DataResult<?> dataResult = ChunkSerializer.BLOCK_STATE_CODEC.parse(NbtOps.INSTANCE, sectionData.getCompound("block_states")).promotePartial((s) -> {
+                    DataResult<PalettedContainer<BlockState>> dataResult = ChunkSerializer.BLOCK_STATE_CODEC.parse(NbtOps.INSTANCE, sectionData.getCompound("block_states")).promotePartial((s) -> {
                         logger.error("Error when getting chunk data: " + s);
                     });
 
-                    PalettedContainer<BlockState> palettedContainer = ((DataResult<PalettedContainer<BlockState>>) dataResult).getOrThrow(false, logger::error);
+                    PalettedContainer<BlockState> palettedContainer = dataResult.getOrThrow(false, logger::error);
 
                     LevelChunkSection chunkSection = new LevelChunkSection(y, palettedContainer, null);
                     chunkSection.recalcBlockCounts();
