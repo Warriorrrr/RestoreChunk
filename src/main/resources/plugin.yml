@@ -1,0 +1,21 @@
+name: RestoreChunk
+version: '${version}'
+main: net.earthmc.restorechunk.RestoreChunkPlugin
+api-version: 1.18
+load: STARTUP
+authors: [ Warriorrr ]
+
+commands:
+  restorechunk:
+    usage: "Restores a chunk to its previous state."
+    permission: restorechunk.command.restorechunk
+  restoreentities:
+    usage: "Restores items from inside item frames."
+    permission: restorechunk.command.restoreentities
+
+permissions:
+  restorechunk.command.*:
+    default: op
+    children:
+      restorechunk.command.restoreentities: true
+      restorechunk.command.restorechunk: true
