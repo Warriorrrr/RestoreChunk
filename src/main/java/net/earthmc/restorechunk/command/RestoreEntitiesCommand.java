@@ -45,7 +45,7 @@ public class RestoreEntitiesCommand implements CommandExecutor {
             return;
         }
 
-        if (!sender.hasPermission("itemframerestorer.command.restoreentities")) {
+        if (!sender.hasPermission("restorechunk.command.restoreentities")) {
             sender.sendMessage(Component.text("You do not have enough permissions to execute this command.", NamedTextColor.RED));
             return;
         }
