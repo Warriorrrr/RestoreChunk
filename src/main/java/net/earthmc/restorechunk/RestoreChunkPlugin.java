@@ -77,20 +77,20 @@ public final class RestoreChunkPlugin extends JavaPlugin {
         if (entityWorker != null) {
             try {
                 entityWorker.close();
-                entityWorker = null;
             } catch (IOException e) {
-                getLogger().warning("Exception while closing entity IO worker");
-                e.printStackTrace();
+                getSLF4JLogger().warn("Exception while closing entity IO worker", e);
+            } finally {
+                entityWorker = null;
             }
         }
 
         if (chunkWorker != null) {
             try {
                 chunkWorker.close();
-                chunkWorker = null;
             } catch (IOException e) {
-                getLogger().warning("Exception while closing chunk IO worker");
-                e.printStackTrace();
+                getSLF4JLogger().warn("Exception while closing chunk IO worker", e);
+            } finally {
+                chunkWorker = null;
             }
         }
     }

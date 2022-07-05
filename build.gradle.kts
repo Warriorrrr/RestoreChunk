@@ -49,6 +49,6 @@ tasks {
     }
 }
 
-tasks.withType<JavaCompile>() {
+tasks.withType<JavaCompile> {
     options.encoding = Charsets.UTF_8.name()
 }

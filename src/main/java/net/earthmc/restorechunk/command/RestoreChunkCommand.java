@@ -1,10 +1,13 @@
 package net.earthmc.restorechunk.command;
 
+import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import net.earthmc.restorechunk.RestoreChunkPlugin;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
 import net.minecraft.core.SectionPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
@@ -12,17 +15,20 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
 import net.minecraft.world.level.chunk.storage.ChunkSerializer;
 import org.bukkit.Bukkit;
-import org.bukkit.Chunk;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.craftbukkit.v1_18_R2.CraftChunk;
 import org.bukkit.craftbukkit.v1_18_R2.CraftWorld;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -63,7 +69,7 @@ public class RestoreChunkCommand implements CommandExecutor {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             CompoundTag compoundTag;
             ChunkPos pos = new ChunkPos(new BlockPos(player.getLocation().getBlockX(), player.getLocation().getBlockY(), player.getLocation().getBlockZ()));
-            Chunk chunk = player.getChunk();
+            LevelChunk chunk = ((CraftChunk) player.getChunk()).getHandle();
 
             try {
                 compoundTag = plugin.loadChunk(pos);
@@ -95,22 +101,33 @@ public class RestoreChunkCommand implements CommandExecutor {
                 CompoundTag sectionData = (CompoundTag) tag;
                 byte y = sectionData.getByte("Y");
 
+                PalettedContainer<BlockState> blockStates;
+                PalettedContainer<Holder<Biome>> biomes;
+
                 if (sectionData.contains("block_states", 10)) {
-                    DataResult<PalettedContainer<BlockState>> dataResult = ChunkSerializer.BLOCK_STATE_CODEC.parse(NbtOps.INSTANCE, sectionData.getCompound("block_states")).promotePartial((s) -> {
-                        logger.error("Error when getting chunk data: " + s);
-                    });
+                    DataResult<PalettedContainer<BlockState>> dataResult = ChunkSerializer.BLOCK_STATE_CODEC.parse(NbtOps.INSTANCE, sectionData.getCompound("block_states")).promotePartial((s) -> logger.error("Error when getting chunk data: " + s));
 
-                    PalettedContainer<BlockState> palettedContainer = dataResult.getOrThrow(false, logger::error);
+                    blockStates = dataResult.getOrThrow(false, logger::error);
+                } else
+                    continue;
 
-                    LevelChunkSection chunkSection = new LevelChunkSection(y, palettedContainer, null);
-                    chunkSection.recalcBlockCounts();
+                Registry<Biome> biomeRegistry = level.registryAccess().registryOrThrow(Registry.BIOME_REGISTRY);
+                Codec<PalettedContainer<Holder<Biome>>> biomeCodec = PalettedContainer.codec(biomeRegistry.asHolderIdMap(), biomeRegistry.holderByNameCodec(), PalettedContainer.Strategy.SECTION_BIOMES, biomeRegistry.getHolderOrThrow(Biomes.PLAINS), null);
 
-                    chunkSections.add(chunkSection);
-                }
+                if (sectionData.contains("biomes", 10)) {
+                    DataResult<PalettedContainer<Holder<Biome>>> dataResult = biomeCodec.parse(NbtOps.INSTANCE, sectionData.getCompound("biomes")).promotePartial(s -> logger.error("Error when getting biome data: " + s));
+                    biomes = dataResult.getOrThrow(false, logger::error);
+                } else
+                    biomes = new PalettedContainer<>(biomeRegistry.asHolderIdMap(), biomeRegistry.getHolderOrThrow(Biomes.PLAINS), PalettedContainer.Strategy.SECTION_BIOMES, null);
+
+                LevelChunkSection chunkSection = new LevelChunkSection(y, blockStates, biomes);
+
+                chunkSections.add(chunkSection);
             }
 
             // Loop through chunk sections and set the blocks.
             Map<Block, BlockData> blocks = new HashMap<>();
+            Map<BlockPos, Holder<Biome>> biomes = new HashMap<>();
             for (LevelChunkSection section : chunkSections) {
                 if (section == null)
                     continue;
@@ -119,9 +136,15 @@ public class RestoreChunkCommand implements CommandExecutor {
                 for (int y = 0; y < 16; y++) {
                     for (int x = 0; x < 16; x++) {
                         for (int z = 0; z < 16; z++) {
-                            BlockData blockData = section.getBlockState(x, y, z).createCraftBlockData();
-                            Block block = chunk.getBlock(x, SectionPos.sectionToBlockCoord(sectionY, y), z);
-                            blocks.put(block, blockData);
+                            BlockPos blockPos = new BlockPos(x, SectionPos.sectionToBlockCoord(sectionY, y), z);
+
+                            BlockState state = section.getBlockState(x, y, z);
+                            if (state.getBlock() != chunk.getBlockIfLoaded(blockPos))
+                                blocks.put(chunk.bukkitChunk.getBlock(x, SectionPos.sectionToBlockCoord(sectionY, y), z), state.createCraftBlockData());
+
+                            try {
+                                biomes.put(blockPos, section.getNoiseBiome(x, y, z));
+                            } catch (ArrayIndexOutOfBoundsException ignored) {}
                         }
                     }
                 }
@@ -131,6 +154,9 @@ public class RestoreChunkCommand implements CommandExecutor {
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     for (Map.Entry<Block, BlockData> entry : blocks.entrySet())
                         entry.getKey().setBlockData(entry.getValue());
+
+                    for (Map.Entry<BlockPos, Holder<Biome>> entry : biomes.entrySet())
+                        chunk.setBiome(entry.getKey().getX() >> 2, entry.getKey().getY() >> 2, entry.getKey().getZ() >> 2, entry.getValue());
                 });
             }
 
