@@ -21,7 +21,6 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -31,38 +30,21 @@ import java.util.List;
 public final class RestoreChunkPlugin extends JavaPlugin {
 
     public final NamespacedKey key = new NamespacedKey(this, "button");
-    public IOWorker entityWorker = null;
-    public IOWorker chunkWorker = null;
+    private Constructor<?> ioWorkerConstructor;
+    private Path regionPath;
+    private Path entityPath;
 
     @Override
     public void onEnable() {
         getDataFolder().mkdir();
+        this.regionPath = getDataFolder().toPath().resolve("region");
+        this.entityPath = getDataFolder().toPath().resolve("entity");
 
-        Constructor<?> ioWorkerConstructor;
         try {
-            ioWorkerConstructor = IOWorker.class.getDeclaredConstructor(Path.class, boolean.class, String.class);
-            ioWorkerConstructor.setAccessible(true);
+            this.ioWorkerConstructor = IOWorker.class.getDeclaredConstructor(Path.class, boolean.class, String.class);
+            this.ioWorkerConstructor.setAccessible(true);
         } catch (NoSuchMethodException e) {
-            getLogger().severe("Could not find the IOWorker constructor, shutting down...");
-            e.printStackTrace();
-            this.setEnabled(false);
-            return;
-        }
-
-        try {
-            this.entityWorker = (IOWorker) ioWorkerConstructor.newInstance(getDataFolder().toPath().resolve("entity"), false, "entityrestore");
-        } catch (Exception e) {
-            getLogger().warning("An unknown exception occurred when initializing the entity IO worker.");
-            e.printStackTrace();
-            this.setEnabled(false);
-            return;
-        }
-
-        try {
-            this.chunkWorker = (IOWorker) ioWorkerConstructor.newInstance(getDataFolder().toPath().resolve("region"), false, "chunkrestore");
-        } catch (Exception e) {
-            getLogger().warning("An unknown exception occurred when initializing the chunk IO worker.");
-            e.printStackTrace();
+            getSLF4JLogger().error("Could not find the IOWorker constructor, shutting down...", e);
             this.setEnabled(false);
             return;
         }
@@ -74,41 +56,29 @@ public final class RestoreChunkPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        if (entityWorker != null) {
-            try {
-                entityWorker.close();
-            } catch (IOException e) {
-                getSLF4JLogger().warn("Exception while closing entity IO worker", e);
-            } finally {
-                entityWorker = null;
-            }
-        }
-
-        if (chunkWorker != null) {
-            try {
-                chunkWorker.close();
-            } catch (IOException e) {
-                getSLF4JLogger().warn("Exception while closing chunk IO worker", e);
-            } finally {
-                chunkWorker = null;
-            }
+        if (!Bukkit.isStopping()) {
+            for (Player player : Bukkit.getOnlinePlayers())
+                if (player.getOpenInventory().getTopInventory().getHolder() instanceof RestoredInventoryHolder)
+                    player.closeInventory();
         }
     }
 
     @Nullable
     public CompoundTag loadEntities(ChunkPos chunkPos) throws Exception {
-        if (entityWorker == null)
-            throw new Exception("Unable to load entities because the worker isn't initialized, check the startup log for errors.");
-
-        return entityWorker.load(chunkPos);
+        try (IOWorker worker = createIOWorker(entityPath, "entityrestore")) {
+            return worker.load(chunkPos);
+        }
     }
 
     @Nullable
     public CompoundTag loadChunk(ChunkPos chunkPos) throws Exception {
-        if (chunkWorker == null)
-            throw new Exception("Unable to load chunk because the chunk worker isn't initialized, check the startup log for errors.");
+        try (IOWorker worker = createIOWorker(regionPath, "chunkrestore")) {
+            return worker.load(chunkPos);
+        }
+    }
 
-        return chunkWorker.load(chunkPos);
+    private IOWorker createIOWorker(Path path, String name) throws Exception {
+        return (IOWorker) ioWorkerConstructor.newInstance(path, false, name);
     }
 
     public Inventory createBlankPage(int pageCount) {
