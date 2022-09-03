@@ -67,6 +67,8 @@ public class RestoreChunkCommand implements CommandExecutor {
         }
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            final long start = System.currentTimeMillis();
+
             CompoundTag compoundTag;
             ChunkPos pos = new ChunkPos(new BlockPos(player.getLocation().getBlockX(), player.getLocation().getBlockY(), player.getLocation().getBlockZ()));
             LevelChunk chunk = ((CraftChunk) player.getChunk()).getHandle();
@@ -159,6 +161,14 @@ public class RestoreChunkCommand implements CommandExecutor {
                         chunk.setBiome(entry.getKey().getX() >> 2, entry.getKey().getY() >> 2, entry.getKey().getZ() >> 2, entry.getValue());
                 });
             }
+
+            player.sendMessage(Component.text("Successfully restored chunk ", NamedTextColor.GREEN)
+                    .append(Component.text(String.format("(%d, %d)", chunk.getPos().x, chunk.getPos().z), NamedTextColor.AQUA))
+                    .append(Component.text(" in "))
+                    .append(Component.text(String.format("%dms", System.currentTimeMillis() - start), NamedTextColor.AQUA))
+                    .append(Component.text(", affecting "))
+                    .append(Component.text(blocks.size(), NamedTextColor.AQUA))
+                    .append(Component.text(" blocks.")));
 
             // Load tile entities a few ticks afterwards, experienced crashes when opening a chest with 0-1 tick delay
             /*
