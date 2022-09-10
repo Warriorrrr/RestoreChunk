@@ -14,7 +14,9 @@ import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.Tuple;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.block.state.BlockState;
@@ -42,10 +44,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class RestoreChunkCommand implements CommandExecutor {
     private final RestoreChunkPlugin plugin;
     private final Logger logger;
+
+    private final Map<UUID, Tuple<Integer, PreviewData>> previewMap = new HashMap<>();
 
     public RestoreChunkCommand(RestoreChunkPlugin plugin) {
         this.plugin = plugin;
@@ -54,7 +60,10 @@ public class RestoreChunkCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        execute(sender, args);
+        if (args.length > 0 && "apply".equalsIgnoreCase(args[0]))
+            apply(sender);
+        else
+            execute(sender, args);
         return true;
     }
 
@@ -72,6 +81,7 @@ public class RestoreChunkCommand implements CommandExecutor {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             // Parse args
             final Set<Material> includeMaterials = new HashSet<>();
+            boolean preview = false;
 
             for (String arg : args) {
                 if (arg.startsWith("i:") || arg.startsWith("include:")) {
@@ -87,6 +97,9 @@ public class RestoreChunkCommand implements CommandExecutor {
                         includeMaterials.add(material);
                     }
                 }
+
+                if ("#preview".equals(arg))
+                    preview = true;
             }
 
 
@@ -179,6 +192,16 @@ public class RestoreChunkCommand implements CommandExecutor {
             if (!includeMaterials.isEmpty())
                 blocks.keySet().removeIf(block -> !includeMaterials.contains(block.getType()));
 
+            if (preview && !blocks.isEmpty()) {
+                int taskId = Bukkit.getScheduler().runTaskLater(plugin, () -> previewMap.remove(player.getUniqueId()), 120 * 20L).getTaskId();
+                previewMap.put(player.getUniqueId(), new Tuple<>(taskId, new PreviewData(level, chunk.getPos(), blocks, biomes)));
+
+                player.sendMultiBlockChange(blocks.entrySet().stream().collect(Collectors.toMap(entry -> entry.getKey().getLocation(), Map.Entry::getValue)), true);
+                player.sendMessage(Component.text("You are now previewing a restore, use /restorechunk apply to apply.", NamedTextColor.GREEN));
+
+                return;
+            }
+
             if (!blocks.isEmpty()) {
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     for (Map.Entry<Block, BlockData> entry : blocks.entrySet())
@@ -219,4 +242,33 @@ public class RestoreChunkCommand implements CommandExecutor {
             */
         });
     }
+
+    public void apply(CommandSender sender) {
+        if (!(sender instanceof Player player))
+            return;
+
+        Tuple<Integer, PreviewData> tuple = previewMap.remove(player.getUniqueId());
+
+        if (tuple == null) {
+            sender.sendMessage(Component.text("You have nothing to apply!", NamedTextColor.RED));
+            return;
+        }
+
+        Bukkit.getScheduler().cancelTask(tuple.getA());
+        PreviewData data = tuple.getB();
+
+        LevelChunk chunk = data.level.getChunkIfLoaded(data.chunkPos.x, data.chunkPos.z);
+        if (chunk == null) {
+            sender.sendMessage(Component.text("Cannot process restore for an unloaded chunk.", NamedTextColor.RED));
+            return;
+        }
+
+        for (Map.Entry<Block, BlockData> entry : data.blocks.entrySet())
+            entry.getKey().setBlockData(entry.getValue());
+
+        for (Map.Entry<BlockPos, Holder<Biome>> entry : data.biomes.entrySet())
+            chunk.setBiome(entry.getKey().getX() >> 2, entry.getKey().getY() >> 2, entry.getKey().getZ() >> 2, entry.getValue());
+    }
+
+    private record PreviewData(Level level, ChunkPos chunkPos, Map<Block, BlockData> blocks, Map<BlockPos, Holder<Biome>> biomes) {}
 }
