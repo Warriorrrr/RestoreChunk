@@ -42,10 +42,12 @@ public class InventoryListener implements Listener {
         ItemMeta meta = clickedItem.getItemMeta();
 
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        if (pdc.has(plugin.key, PersistentDataType.INTEGER)) {
-            holder.handleClick(player, pdc.get(plugin.key, PersistentDataType.INTEGER));
+        Integer integer = pdc.get(plugin.key, PersistentDataType.INTEGER);
+
+        if (integer != null) {
+            holder.handleClick(player, integer);
             return;
-        } else if (pdc.has(plugin.key, PersistentDataType.STRING) && pdc.get(plugin.key, PersistentDataType.STRING).equals("dump")) {
+        } else if ("dump".equals(pdc.get(plugin.key, PersistentDataType.STRING))) {
             for (Inventory inventory : holder.inventories) {
                 for (ItemStack item : inventory.getContents()) {
                     if (item == null)
