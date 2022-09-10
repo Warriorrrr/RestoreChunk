@@ -110,7 +110,7 @@ public class RestoreChunkCommand implements CommandExecutor {
             LevelChunk chunk = ((CraftChunk) player.getChunk()).getHandle();
 
             try {
-                compoundTag = plugin.loadChunk(pos);
+                compoundTag = plugin.loadChunk(player.getWorld().getName(), pos);
             } catch (Exception e) {
                 sender.sendMessage(Component.text("An unknown exception occurred when loading chunk: " + e.getClass().getName() + ": " + e.getMessage(), NamedTextColor.RED));
                 e.printStackTrace();

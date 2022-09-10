@@ -22,6 +22,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Constructor;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -31,14 +32,12 @@ public final class RestoreChunkPlugin extends JavaPlugin {
 
     public final NamespacedKey key = new NamespacedKey(this, "button");
     private Constructor<?> ioWorkerConstructor;
-    private Path regionPath;
-    private Path entityPath;
+    private Path dataFolderPath;
 
     @Override
     public void onEnable() {
         getDataFolder().mkdir();
-        this.regionPath = getDataFolder().toPath().resolve("region");
-        this.entityPath = getDataFolder().toPath().resolve("entity");
+        this.dataFolderPath = getDataFolder().toPath();
 
         try {
             this.ioWorkerConstructor = IOWorker.class.getDeclaredConstructor(Path.class, boolean.class, String.class);
@@ -64,20 +63,23 @@ public final class RestoreChunkPlugin extends JavaPlugin {
     }
 
     @Nullable
-    public CompoundTag loadEntities(ChunkPos chunkPos) throws Exception {
-        try (IOWorker worker = createIOWorker(entityPath, "entityrestore")) {
+    public CompoundTag loadEntities(String worldName, ChunkPos chunkPos) throws Exception {
+        try (IOWorker worker = createIOWorker(dataFolderPath.resolve(worldName).resolve("entity"), "entityrestore")) {
             return worker.load(chunkPos);
         }
     }
 
     @Nullable
-    public CompoundTag loadChunk(ChunkPos chunkPos) throws Exception {
-        try (IOWorker worker = createIOWorker(regionPath, "chunkrestore")) {
+    public CompoundTag loadChunk(String worldName, ChunkPos chunkPos) throws Exception {
+        try (IOWorker worker = createIOWorker(dataFolderPath.resolve(worldName).resolve("region"), "chunkrestore")) {
             return worker.load(chunkPos);
         }
     }
 
     private IOWorker createIOWorker(Path path, String name) throws Exception {
+        if (!Files.exists(path))
+            Files.createDirectories(path);
+
         return (IOWorker) ioWorkerConstructor.newInstance(path, false, name);
     }
 

@@ -55,7 +55,7 @@ public class RestoreEntitiesCommand implements CommandExecutor {
             ChunkPos pos = new ChunkPos(new BlockPos(player.getLocation().getBlockX(), player.getLocation().getBlockY(), player.getLocation().getBlockZ()));
 
             try {
-                compoundTag = plugin.loadEntities(pos);
+                compoundTag = plugin.loadEntities(player.getWorld().getName(), pos);
             } catch (Exception e) {
                 sender.sendMessage(Component.text("An unknown exception occurred when loading entity NBT: " + e.getClass().getName() + ": " + e.getMessage(), NamedTextColor.RED));
                 e.printStackTrace();
