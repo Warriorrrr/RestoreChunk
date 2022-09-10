@@ -23,6 +23,7 @@ import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
 import net.minecraft.world.level.chunk.storage.ChunkSerializer;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.command.Command;
@@ -37,8 +38,10 @@ import org.slf4j.Logger;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class RestoreChunkCommand implements CommandExecutor {
     private final RestoreChunkPlugin plugin;
@@ -51,11 +54,11 @@ public class RestoreChunkCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        execute(sender);
+        execute(sender, args);
         return true;
     }
 
-    public void execute(CommandSender sender) {
+    public void execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
             sender.sendMessage(Component.text("This command cannot be used by console.", NamedTextColor.RED));
             return;
@@ -67,6 +70,26 @@ public class RestoreChunkCommand implements CommandExecutor {
         }
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            // Parse args
+            final Set<Material> includeMaterials = new HashSet<>();
+
+            for (String arg : args) {
+                if (arg.startsWith("i:") || arg.startsWith("include:")) {
+                    String[] blocksToInclude = arg.split(":", 2)[1].split(",");
+                    for (String blockName : blocksToInclude) {
+                        Material material = Material.matchMaterial(blockName);
+
+                        if (material == null || !material.isBlock()) {
+                            sender.sendMessage(Component.text("Invalid block type: " + blockName, NamedTextColor.RED));
+                            return;
+                        }
+
+                        includeMaterials.add(material);
+                    }
+                }
+            }
+
+
             final long start = System.currentTimeMillis();
 
             CompoundTag compoundTag;
@@ -151,6 +174,10 @@ public class RestoreChunkCommand implements CommandExecutor {
                     }
                 }
             }
+
+            // Filter blocks to included materials
+            if (!includeMaterials.isEmpty())
+                blocks.keySet().removeIf(block -> !includeMaterials.contains(block.getType()));
 
             if (!blocks.isEmpty()) {
                 Bukkit.getScheduler().runTask(plugin, () -> {
