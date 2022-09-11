@@ -3,6 +3,8 @@ package net.earthmc.restorechunk.command;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import net.earthmc.restorechunk.RestoreChunkPlugin;
+import net.earthmc.restorechunk.object.parsing.ArgumentParser;
+import net.earthmc.restorechunk.object.parsing.ParsingException;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.minecraft.core.BlockPos;
@@ -25,7 +27,7 @@ import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
 import net.minecraft.world.level.chunk.storage.ChunkSerializer;
 import org.bukkit.Bukkit;
-import org.bukkit.Material;
+import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.command.Command;
@@ -40,11 +42,10 @@ import org.slf4j.Logger;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class RestoreChunkCommand implements CommandExecutor {
@@ -80,28 +81,13 @@ public class RestoreChunkCommand implements CommandExecutor {
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             // Parse args
-            final Set<Material> includeMaterials = new HashSet<>();
-            boolean preview = false;
-
-            for (String arg : args) {
-                if (arg.startsWith("i:") || arg.startsWith("include:")) {
-                    String[] blocksToInclude = arg.split(":", 2)[1].split(",");
-                    for (String blockName : blocksToInclude) {
-                        Material material = Material.matchMaterial(blockName);
-
-                        if (material == null || !material.isBlock()) {
-                            sender.sendMessage(Component.text("Invalid block type: " + blockName, NamedTextColor.RED));
-                            return;
-                        }
-
-                        includeMaterials.add(material);
-                    }
-                }
-
-                if ("#preview".equals(arg))
-                    preview = true;
+            ArgumentParser parsedArgs;
+            try {
+                parsedArgs = ArgumentParser.parse(args);
+            } catch (ParsingException e) {
+                sender.sendMessage(Component.text(e.getMessage(), NamedTextColor.RED));
+                return;
             }
-
 
             final long start = System.currentTimeMillis();
 
@@ -189,10 +175,19 @@ public class RestoreChunkCommand implements CommandExecutor {
             }
 
             // Filter blocks to included materials
-            if (!includeMaterials.isEmpty())
-                blocks.keySet().removeIf(block -> !includeMaterials.contains(block.getType()));
+            if (!parsedArgs.includes().isEmpty()) {
+                blocks.entrySet().removeIf(entry -> {
+                    Predicate<Location> predicate = parsedArgs.includes().get(entry.getValue().getMaterial());
 
-            if (preview && !blocks.isEmpty()) {
+                    return predicate == null || !predicate.test(entry.getKey().getLocation());
+                });
+            }
+
+            // Apply predicates
+            if (!parsedArgs.predicates().isEmpty())
+                blocks.keySet().removeIf(block -> !parsedArgs.predicates().stream().allMatch(predicate -> predicate.test(block.getLocation())));
+
+            if (parsedArgs.preview() && !blocks.isEmpty()) {
                 int taskId = Bukkit.getScheduler().runTaskLater(plugin, () -> previewMap.remove(player.getUniqueId()), 120 * 20L).getTaskId();
                 previewMap.put(player.getUniqueId(), new Tuple<>(taskId, new PreviewData(level, chunk.getPos(), blocks, biomes)));
 

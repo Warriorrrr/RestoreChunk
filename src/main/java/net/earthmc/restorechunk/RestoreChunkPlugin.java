@@ -4,6 +4,7 @@ import net.earthmc.restorechunk.command.RestoreChunkCommand;
 import net.earthmc.restorechunk.command.RestoreEntitiesCommand;
 import net.earthmc.restorechunk.command.RestoreEntitiesCommand.ItemEntry;
 import net.earthmc.restorechunk.listener.InventoryListener;
+import net.earthmc.restorechunk.object.RestoredInventoryHolder;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;

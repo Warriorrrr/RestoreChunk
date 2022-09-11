@@ -1,5 +1,6 @@
-package net.earthmc.restorechunk;
+package net.earthmc.restorechunk.object;
 
+import net.earthmc.restorechunk.RestoreChunkPlugin;
 import net.kyori.adventure.text.Component;
 import net.minecraft.util.Mth;
 import org.bukkit.Bukkit;

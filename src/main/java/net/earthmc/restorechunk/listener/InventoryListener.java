@@ -1,7 +1,7 @@
 package net.earthmc.restorechunk.listener;
 
 import net.earthmc.restorechunk.RestoreChunkPlugin;
-import net.earthmc.restorechunk.RestoredInventoryHolder;
+import net.earthmc.restorechunk.object.RestoredInventoryHolder;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
