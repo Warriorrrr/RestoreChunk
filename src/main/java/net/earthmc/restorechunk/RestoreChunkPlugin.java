@@ -66,14 +66,14 @@ public final class RestoreChunkPlugin extends JavaPlugin {
     @Nullable
     public CompoundTag loadEntities(String worldName, ChunkPos chunkPos) throws Exception {
         try (IOWorker worker = createIOWorker(dataFolderPath.resolve(worldName).resolve("entity"), "entityrestore")) {
-            return worker.load(chunkPos);
+            return worker.loadAsync(chunkPos).join().orElse(null);
         }
     }
 
     @Nullable
     public CompoundTag loadChunk(String worldName, ChunkPos chunkPos) throws Exception {
         try (IOWorker worker = createIOWorker(dataFolderPath.resolve(worldName).resolve("region"), "chunkrestore")) {
-            return worker.load(chunkPos);
+            return worker.loadAsync(chunkPos).join().orElse(null);
         }
     }
 

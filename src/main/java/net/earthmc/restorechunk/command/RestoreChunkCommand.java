@@ -25,6 +25,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
+import net.minecraft.world.level.chunk.PalettedContainerRO;
 import net.minecraft.world.level.chunk.storage.ChunkSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -33,13 +34,12 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.craftbukkit.v1_18_R2.CraftChunk;
-import org.bukkit.craftbukkit.v1_18_R2.CraftWorld;
+import org.bukkit.craftbukkit.v1_19_R1.CraftChunk;
+import org.bukkit.craftbukkit.v1_19_R1.CraftWorld;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -111,13 +111,7 @@ public class RestoreChunkCommand implements CommandExecutor {
             ServerLevel level = ((CraftWorld) player.getWorld()).getHandle();
             ChunkMap chunkMap = level.getChunkSource().chunkMap;
 
-            try {
-                compoundTag = chunkMap.upgradeChunkTag(level.getTypeKey(), chunkMap.overworldDataStorage, compoundTag, chunkMap.generator.getTypeNameForDataFixer(), pos, level);
-            } catch (IOException e) {
-                player.sendMessage(Component.text("An exception occurred when upgrading chunk tag: " + e.getMessage()));
-                logger.error("An exception occurred when upgrading chunk tag", e);
-                return;
-            }
+            compoundTag = chunkMap.upgradeChunkTag(level.getTypeKey(), chunkMap.overworldDataStorage, compoundTag, chunkMap.generator.getTypeNameForDataFixer(), pos, level);
 
             List<LevelChunkSection> chunkSections = new ArrayList<>();
 
@@ -136,11 +130,11 @@ public class RestoreChunkCommand implements CommandExecutor {
                     continue;
 
                 Registry<Biome> biomeRegistry = level.registryAccess().registryOrThrow(Registry.BIOME_REGISTRY);
-                Codec<PalettedContainer<Holder<Biome>>> biomeCodec = PalettedContainer.codec(biomeRegistry.asHolderIdMap(), biomeRegistry.holderByNameCodec(), PalettedContainer.Strategy.SECTION_BIOMES, biomeRegistry.getHolderOrThrow(Biomes.PLAINS), null);
+                Codec<PalettedContainerRO<Holder<Biome>>> biomeCodec = PalettedContainer.codecRO(biomeRegistry.asHolderIdMap(), biomeRegistry.holderByNameCodec(), PalettedContainer.Strategy.SECTION_BIOMES, biomeRegistry.getHolderOrThrow(Biomes.PLAINS));
 
                 if (sectionData.contains("biomes", 10)) {
-                    DataResult<PalettedContainer<Holder<Biome>>> dataResult = biomeCodec.parse(NbtOps.INSTANCE, sectionData.getCompound("biomes")).promotePartial(s -> logger.error("Error when getting biome data: " + s));
-                    biomes = dataResult.getOrThrow(false, logger::error);
+                    DataResult<PalettedContainerRO<Holder<Biome>>> dataResult = biomeCodec.parse(NbtOps.INSTANCE, sectionData.getCompound("biomes")).promotePartial(s -> logger.error("Error when getting biome data: " + s));
+                    biomes = dataResult.getOrThrow(false, logger::error).recreate();
                 } else
                     biomes = new PalettedContainer<>(biomeRegistry.asHolderIdMap(), biomeRegistry.getHolderOrThrow(Biomes.PLAINS), PalettedContainer.Strategy.SECTION_BIOMES, null);
 
