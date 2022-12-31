@@ -10,6 +10,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.EntityTypeTags;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.storage.EntityStorage;
@@ -73,8 +76,13 @@ public class RestoreEntitiesCommand implements CommandExecutor {
             for (Tag tag : compoundTag.getList("Entities", 10)) {
                 CompoundTag entityTag = (CompoundTag) tag;
 
-                Optional<EntityType<?>> type = EntityType.by(entityTag);
-                if (type.isPresent() && type.get().id.equals("item_frame")) {
+                String id = entityTag.getString("id");
+                if (id.isEmpty())
+                    continue;
+
+                String path = new ResourceLocation(id).getPath();
+
+                if (path.equals("item_frame") || path.equals("glow_item_frame")) {
                     net.minecraft.world.item.ItemStack framedItem = net.minecraft.world.item.ItemStack.of(entityTag.getCompound("Item"));
 
                     if (!framedItem.isEmpty()) {

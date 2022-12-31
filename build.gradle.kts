@@ -17,8 +17,8 @@ repositories {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.18.2-R0.1-SNAPSHOT")
-    paperDevBundle("1.19.2-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:1.19.3-R0.1-SNAPSHOT")
+    paperDevBundle("1.19.3-R0.1-SNAPSHOT")
 }
 
 group = "net.earthmc"
@@ -31,7 +31,7 @@ tasks {
     }
 
     runServer {
-        minecraftVersion("1.19.2")
+        minecraftVersion("1.19.3")
     }
 
     compileJava {
