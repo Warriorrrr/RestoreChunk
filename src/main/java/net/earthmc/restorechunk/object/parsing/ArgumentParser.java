@@ -51,6 +51,8 @@ public class ArgumentParser {
                 }
             } else if ("#preview".equals(arg))
                 preview = true;
+            else
+                throw new ParsingException("Unknown argument: " + arg);
         }
     }
 
