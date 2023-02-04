@@ -22,6 +22,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
@@ -169,6 +170,12 @@ public class RestoreChunkCommand implements CommandExecutor {
                 }
             }
 
+            final List<CompoundTag> blockEntities = compoundTag.getList("block_entities", 10).stream()
+                    .map(tag -> tag.getId() == 10 ? (CompoundTag) tag : new CompoundTag())
+                    .toList();
+
+            final long inhabitedTime = compoundTag.getLong("InhabitedTime");
+
             // Filter blocks to included materials
             if (!parsedArgs.includes().isEmpty()) {
                 blocks.entrySet().removeIf(entry -> {
@@ -184,7 +191,7 @@ public class RestoreChunkCommand implements CommandExecutor {
 
             if (parsedArgs.preview() && !blocks.isEmpty()) {
                 int taskId = Bukkit.getScheduler().runTaskLater(plugin, () -> previewMap.remove(player.getUniqueId()), 120 * 20L).getTaskId();
-                previewMap.put(player.getUniqueId(), new Tuple<>(taskId, new PreviewData(level, chunk.getPos(), blocks, biomes, System.currentTimeMillis() - start)));
+                previewMap.put(player.getUniqueId(), new Tuple<>(taskId, new PreviewData(level, chunk.getPos(), blocks, biomes, System.currentTimeMillis() - start, blockEntities, inhabitedTime)));
 
                 player.sendMultiBlockChange(blocks.entrySet().stream().collect(Collectors.toMap(entry -> entry.getKey().getLocation(), Map.Entry::getValue)), true);
                 player.sendMessage(Component.text("You are now previewing a restore, use /restorechunk apply to apply.", NamedTextColor.GREEN));
@@ -192,10 +199,29 @@ public class RestoreChunkCommand implements CommandExecutor {
                 return;
             }
 
+            chunk.setInhabitedTime(inhabitedTime);
+
             if (!blocks.isEmpty()) {
                 Bukkit.getScheduler().runTask(plugin, () -> {
+                    chunk.clearAllBlockEntities();
+
                     for (Map.Entry<Block, BlockData> entry : blocks.entrySet())
                         entry.getKey().setBlockData(entry.getValue());
+
+                    for (CompoundTag blockEntityTag : blockEntities) {
+                        if (blockEntityTag.getBoolean("keepPacked")) {
+                            chunk.setBlockEntityNbt(blockEntityTag);
+                            continue;
+                        }
+
+                        BlockPos blockPos = BlockEntity.getPosFromTag(blockEntityTag);
+                        BlockEntity entity = BlockEntity.loadStatic(blockPos, chunk.getBlockState(blockPos), blockEntityTag);
+
+                        if (entity != null)
+                            chunk.setBlockEntity(entity);
+                    }
+
+                    chunk.registerAllBlockEntitiesAfterLevelLoad();
 
                     for (Map.Entry<BlockPos, Holder<Biome>> entry : biomes.entrySet())
                         chunk.setBiome(entry.getKey().getX() >> 2, entry.getKey().getY() >> 2, entry.getKey().getZ() >> 2, entry.getValue());
@@ -209,27 +235,6 @@ public class RestoreChunkCommand implements CommandExecutor {
                     .append(Component.text(", affecting "))
                     .append(Component.text(blocks.size(), NamedTextColor.AQUA))
                     .append(Component.text(" blocks.")));
-
-            // Load tile entities a few ticks afterwards, experienced crashes when opening a chest with 0-1 tick delay
-            /*
-            Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
-                LevelChunk levelChunk = ((CraftChunk) chunk).getHandle();
-                for (Tag tag : compoundTag.getList("TileEntities", 10)) {
-                    CompoundTag blockEntityNbt = (CompoundTag) tag;
-
-                    if (blockEntityNbt.getBoolean("keepPacked")) {
-                        levelChunk.setBlockEntityNbt(blockEntityNbt);
-                        continue;
-                    }
-
-                    BlockPos blockPos = new BlockPos(blockEntityNbt.getInt("x"), blockEntityNbt.getInt("y"), blockEntityNbt.getInt("z"));
-                    BlockEntity blockEntity = BlockEntity.loadStatic(blockPos, levelChunk.getBlockState(blockPos), blockEntityNbt);
-
-                    if (blockEntity != null)
-                        Bukkit.getScheduler().runTask(plugin, () -> levelChunk.setBlockEntity(blockEntity));
-                }
-            }, 3);
-            */
         });
     }
 
@@ -253,8 +258,26 @@ public class RestoreChunkCommand implements CommandExecutor {
             return;
         }
 
+        chunk.setInhabitedTime(data.inhabitedTime());
+        chunk.clearAllBlockEntities();
+
         for (Map.Entry<Block, BlockData> entry : data.blocks.entrySet())
             entry.getKey().setBlockData(entry.getValue());
+
+        for (CompoundTag blockEntityTag : data.blockEntities()) {
+            if (blockEntityTag.getBoolean("keepPacked")) {
+                chunk.setBlockEntityNbt(blockEntityTag);
+                continue;
+            }
+
+            BlockPos blockPos = BlockEntity.getPosFromTag(blockEntityTag);
+            BlockEntity entity = BlockEntity.loadStatic(blockPos, chunk.getBlockState(blockPos), blockEntityTag);
+
+            if (entity != null)
+                chunk.setBlockEntity(entity);
+        }
+
+        chunk.registerAllBlockEntitiesAfterLevelLoad();
 
         for (Map.Entry<BlockPos, Holder<Biome>> entry : data.biomes.entrySet())
             chunk.setBiome(entry.getKey().getX() >> 2, entry.getKey().getY() >> 2, entry.getKey().getZ() >> 2, entry.getValue());
@@ -268,5 +291,5 @@ public class RestoreChunkCommand implements CommandExecutor {
                 .append(Component.text(" blocks.")));
     }
 
-    private record PreviewData(Level level, ChunkPos chunkPos, Map<Block, BlockData> blocks, Map<BlockPos, Holder<Biome>> biomes, long timeTaken) {}
+    private record PreviewData(Level level, ChunkPos chunkPos, Map<Block, BlockData> blocks, Map<BlockPos, Holder<Biome>> biomes, long timeTaken, List<CompoundTag> blockEntities, long inhabitedTime) {}
 }
