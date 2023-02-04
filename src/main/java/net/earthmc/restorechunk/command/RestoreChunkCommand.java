@@ -184,7 +184,7 @@ public class RestoreChunkCommand implements CommandExecutor {
 
             if (parsedArgs.preview() && !blocks.isEmpty()) {
                 int taskId = Bukkit.getScheduler().runTaskLater(plugin, () -> previewMap.remove(player.getUniqueId()), 120 * 20L).getTaskId();
-                previewMap.put(player.getUniqueId(), new Tuple<>(taskId, new PreviewData(level, chunk.getPos(), blocks, biomes)));
+                previewMap.put(player.getUniqueId(), new Tuple<>(taskId, new PreviewData(level, chunk.getPos(), blocks, biomes, System.currentTimeMillis() - start)));
 
                 player.sendMultiBlockChange(blocks.entrySet().stream().collect(Collectors.toMap(entry -> entry.getKey().getLocation(), Map.Entry::getValue)), true);
                 player.sendMessage(Component.text("You are now previewing a restore, use /restorechunk apply to apply.", NamedTextColor.GREEN));
@@ -258,7 +258,15 @@ public class RestoreChunkCommand implements CommandExecutor {
 
         for (Map.Entry<BlockPos, Holder<Biome>> entry : data.biomes.entrySet())
             chunk.setBiome(entry.getKey().getX() >> 2, entry.getKey().getY() >> 2, entry.getKey().getZ() >> 2, entry.getValue());
+
+        player.sendMessage(Component.text("Successfully restored chunk ", NamedTextColor.GREEN)
+                .append(Component.text(String.format("(%d, %d)", chunk.getPos().x, chunk.getPos().z), NamedTextColor.AQUA))
+                .append(Component.text(" in "))
+                .append(Component.text(String.format("%dms", data.timeTaken()), NamedTextColor.AQUA))
+                .append(Component.text(", affecting "))
+                .append(Component.text(data.blocks().size(), NamedTextColor.AQUA))
+                .append(Component.text(" blocks.")));
     }
 
-    private record PreviewData(Level level, ChunkPos chunkPos, Map<Block, BlockData> blocks, Map<BlockPos, Holder<Biome>> biomes) {}
+    private record PreviewData(Level level, ChunkPos chunkPos, Map<Block, BlockData> blocks, Map<BlockPos, Holder<Biome>> biomes, long timeTaken) {}
 }
