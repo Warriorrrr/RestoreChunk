@@ -15,7 +15,7 @@ import java.util.regex.Pattern;
 public class ArgumentParser {
     private static final Predicate<Location> TRUE_PREDICATE = location -> true;
 
-    private static final String PREDICATE_STRING = "([xyz])([<>=]|>=|<=|%|&)(\\d+|-\\d+)";
+    private static final String PREDICATE_STRING = "([xyz])([<>=%&]|>=|<=)(\\d+|-\\d+)";
     private static final Pattern PREDICATE_PATTERN = Pattern.compile("\\(" + PREDICATE_STRING + "\\)");
     private static final Pattern PREDICATE_PATTERN_NO_PARENTHESIS = Pattern.compile(PREDICATE_STRING);
 
