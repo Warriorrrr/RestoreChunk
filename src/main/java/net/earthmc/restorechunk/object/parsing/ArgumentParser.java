@@ -22,6 +22,7 @@ public class ArgumentParser {
     private final Map<Material, Predicate<Location>> includeMaterials = new HashMap<>();
     private final Set<Predicate<Location>> predicates = new HashSet<>();
     private boolean preview;
+    private boolean relight;
 
     private ArgumentParser(String[] args) throws ParsingException {
         for (String arg : args) {
@@ -51,6 +52,8 @@ public class ArgumentParser {
                 }
             } else if ("#preview".equals(arg))
                 preview = true;
+            else if ("#relight".equals(arg))
+                relight = true;
             else
                 throw new ParsingException("Unknown argument: " + arg);
         }
@@ -95,6 +98,10 @@ public class ArgumentParser {
 
     public boolean preview() {
         return this.preview;
+    }
+
+    public boolean relight() {
+        return this.relight;
     }
 
     public Map<Material, Predicate<Location>> includes() {

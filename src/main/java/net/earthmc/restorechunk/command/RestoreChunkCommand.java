@@ -2,6 +2,7 @@ package net.earthmc.restorechunk.command;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
+import io.papermc.paper.util.MCUtil;
 import net.earthmc.restorechunk.RestoreChunkPlugin;
 import net.earthmc.restorechunk.object.parsing.ArgumentParser;
 import net.earthmc.restorechunk.object.parsing.ParsingException;
@@ -17,6 +18,7 @@ import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ThreadedLevelLightEngine;
 import net.minecraft.util.Tuple;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
@@ -44,6 +46,7 @@ import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -191,7 +194,7 @@ public class RestoreChunkCommand implements CommandExecutor {
 
             if (parsedArgs.preview() && !blocks.isEmpty()) {
                 int taskId = Bukkit.getScheduler().runTaskLater(plugin, () -> previewMap.remove(player.getUniqueId()), 120 * 20L).getTaskId();
-                previewMap.put(player.getUniqueId(), new Tuple<>(taskId, new PreviewData(level, chunk.getPos(), blocks, biomes, System.currentTimeMillis() - start, blockEntities, inhabitedTime)));
+                previewMap.put(player.getUniqueId(), new Tuple<>(taskId, new PreviewData(level, chunk.getPos(), blocks, biomes, System.currentTimeMillis() - start, blockEntities, inhabitedTime, parsedArgs.relight())));
 
                 player.sendMultiBlockChange(blocks.entrySet().stream().collect(Collectors.toMap(entry -> entry.getKey().getLocation(), Map.Entry::getValue)), true);
                 player.sendMessage(Component.text("You are now previewing a restore, use /restorechunk apply to apply.", NamedTextColor.GREEN));
@@ -225,6 +228,9 @@ public class RestoreChunkCommand implements CommandExecutor {
 
                     for (Map.Entry<BlockPos, Holder<Biome>> entry : biomes.entrySet())
                         chunk.setBiome(entry.getKey().getX() >> 2, entry.getKey().getY() >> 2, entry.getKey().getZ() >> 2, entry.getValue());
+
+                    if (parsedArgs.relight())
+                        relightChunks(level.chunkSource.getLightEngine(), chunk.getPos());
 
                     if (!biomes.isEmpty())
                         level.chunkSource.chunkMap.resendChunk(chunk);
@@ -285,6 +291,12 @@ public class RestoreChunkCommand implements CommandExecutor {
         for (Map.Entry<BlockPos, Holder<Biome>> entry : data.biomes.entrySet())
             chunk.setBiome(entry.getKey().getX() >> 2, entry.getKey().getY() >> 2, entry.getKey().getZ() >> 2, entry.getValue());
 
+        if (data.relight())
+            relightChunks(chunk.level.chunkSource.getLightEngine(), chunk.getPos());
+
+        if (!data.biomes().isEmpty())
+            chunk.level.chunkSource.chunkMap.resendChunk(chunk);
+
         player.sendMessage(Component.text("Successfully restored chunk ", NamedTextColor.GREEN)
                 .append(Component.text(String.format("(%d, %d)", chunk.getPos().x, chunk.getPos().z), NamedTextColor.AQUA))
                 .append(Component.text(" in "))
@@ -294,5 +306,9 @@ public class RestoreChunkCommand implements CommandExecutor {
                 .append(Component.text(" blocks.")));
     }
 
-    private record PreviewData(Level level, ChunkPos chunkPos, Map<Block, BlockData> blocks, Map<BlockPos, Holder<Biome>> biomes, long timeTaken, List<CompoundTag> blockEntities, long inhabitedTime) {}
+    private void relightChunks(ThreadedLevelLightEngine lightEngine, ChunkPos center) {
+        lightEngine.relight(new HashSet<>(MCUtil.getSpiralOutChunks(center.getWorldPosition(), 1)), progress -> {}, complete -> {});
+    }
+
+    private record PreviewData(Level level, ChunkPos chunkPos, Map<Block, BlockData> blocks, Map<BlockPos, Holder<Biome>> biomes, long timeTaken, List<CompoundTag> blockEntities, long inhabitedTime, boolean relight) {}
 }
