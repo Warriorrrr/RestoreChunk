@@ -225,6 +225,9 @@ public class RestoreChunkCommand implements CommandExecutor {
 
                     for (Map.Entry<BlockPos, Holder<Biome>> entry : biomes.entrySet())
                         chunk.setBiome(entry.getKey().getX() >> 2, entry.getKey().getY() >> 2, entry.getKey().getZ() >> 2, entry.getValue());
+
+                    if (!biomes.isEmpty())
+                        level.chunkSource.chunkMap.resendChunk(chunk);
                 });
             }
 
