@@ -67,7 +67,7 @@ public class ArgumentParser {
 
         try {
             final String xyz = matcher.group(1);
-            final String comparator = matcher.group(2);
+            final String operator = matcher.group(2);
             final int coord = Integer.parseInt(matcher.group(3));
 
             return (location -> {
@@ -78,7 +78,7 @@ public class ArgumentParser {
                     default -> throw new RuntimeException("invalid argument: " + xyz);
                 };
 
-                return switch (comparator) {
+                return switch (operator) {
                     case ">" -> block > coord;
                     case "<" -> block < coord;
                     case ">=" -> block >= coord;
@@ -86,7 +86,7 @@ public class ArgumentParser {
                     case "=" -> block == coord;
                     case "%" -> block % coord == 0;
                     case "&" -> (block & coord) == 0;
-                    default -> throw new RuntimeException("invalid comparator: " + comparator);
+                    default -> throw new RuntimeException("invalid operator: " + operator);
                 };
             });
         } catch (Exception e) {
