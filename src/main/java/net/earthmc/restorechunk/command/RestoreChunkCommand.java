@@ -26,6 +26,7 @@ import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.ChunkStatus;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
@@ -38,8 +39,9 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.craftbukkit.v1_19_R2.CraftChunk;
-import org.bukkit.craftbukkit.v1_19_R2.CraftWorld;
+import org.bukkit.craftbukkit.v1_19_R3.CraftChunk;
+import org.bukkit.craftbukkit.v1_19_R3.CraftWorld;
+import org.bukkit.craftbukkit.v1_19_R3.block.CraftBlock;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -98,7 +100,7 @@ public class RestoreChunkCommand implements CommandExecutor {
 
             CompoundTag compoundTag;
             ChunkPos pos = new ChunkPos(new BlockPos(player.getLocation().getBlockX(), player.getLocation().getBlockY(), player.getLocation().getBlockZ()));
-            LevelChunk chunk = ((CraftChunk) player.getChunk()).getHandle();
+            LevelChunk chunk = (LevelChunk) ((CraftChunk) player.getChunk()).getHandle(ChunkStatus.FULL);
 
             try {
                 compoundTag = plugin.loadChunk(player.getWorld().getName(), pos);
@@ -149,7 +151,7 @@ public class RestoreChunkCommand implements CommandExecutor {
             }
 
             // Loop through chunk sections and set the blocks.
-            Map<Block, BlockData> blocks = new HashMap<>();
+            Map<Block, BlockData> blocks = new HashMap<>(); // TODO: use nms instances instead of API here
             Map<BlockPos, Holder<Biome>> biomes = new HashMap<>();
             for (LevelChunkSection section : chunkSections) {
                 if (section == null)
@@ -163,7 +165,7 @@ public class RestoreChunkCommand implements CommandExecutor {
 
                             BlockState state = section.getBlockState(x, y, z);
                             if (state.getBlock() != chunk.getBlockIfLoaded(blockPos))
-                                blocks.put(chunk.bukkitChunk.getBlock(x, SectionPos.sectionToBlockCoord(sectionY, y), z), state.createCraftBlockData());
+                                blocks.put(CraftBlock.at(level, blockPos), state.createCraftBlockData());
 
                             try {
                                 biomes.put(blockPos, section.getNoiseBiome(x, y, z));
@@ -233,7 +235,7 @@ public class RestoreChunkCommand implements CommandExecutor {
                         relightChunks(level.chunkSource.getLightEngine(), chunk.getPos());
 
                     if (!biomes.isEmpty())
-                        level.chunkSource.chunkMap.resendChunk(chunk);
+                        level.chunkSource.chunkMap.resendBiomesForChunks(List.of(chunk));
                 });
             }
 
@@ -295,7 +297,7 @@ public class RestoreChunkCommand implements CommandExecutor {
             relightChunks(chunk.level.chunkSource.getLightEngine(), chunk.getPos());
 
         if (!data.biomes().isEmpty())
-            chunk.level.chunkSource.chunkMap.resendChunk(chunk);
+            chunk.level.chunkSource.chunkMap.resendBiomesForChunks(List.of(chunk));
 
         player.sendMessage(Component.text("Successfully restored chunk ", NamedTextColor.GREEN)
                 .append(Component.text(String.format("(%d, %d)", chunk.getPos().x, chunk.getPos().z), NamedTextColor.AQUA))

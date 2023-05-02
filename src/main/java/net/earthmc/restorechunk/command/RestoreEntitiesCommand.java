@@ -9,13 +9,10 @@ import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.EntityTypeTags;
-import net.minecraft.tags.TagKey;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.chunk.storage.EntityStorage;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.Command;
@@ -27,7 +24,6 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 public class RestoreEntitiesCommand implements CommandExecutor {
     private final RestoreChunkPlugin plugin;
@@ -70,7 +66,7 @@ public class RestoreEntitiesCommand implements CommandExecutor {
                 return;
             }
 
-            compoundTag = MCDataConverter.convertTag(MCTypeRegistry.ENTITY_CHUNK, compoundTag, EntityStorage.getVersion(compoundTag), SharedConstants.getCurrentVersion().getDataVersion().getVersion());
+            compoundTag = MCDataConverter.convertTag(MCTypeRegistry.ENTITY_CHUNK, compoundTag, NbtUtils.getDataVersion(compoundTag, -1), SharedConstants.getCurrentVersion().getDataVersion().getVersion());
 
             List<ItemEntry> entries = new ArrayList<>();
             for (Tag tag : compoundTag.getList("Entities", 10)) {
