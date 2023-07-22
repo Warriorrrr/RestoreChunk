@@ -144,7 +144,7 @@ public class RestoreChunkCommand implements CommandExecutor {
             for (int y = 0; y < 16; y++) {
                 for (int x = 0; x < 16; x++) {
                     for (int z = 0; z < 16; z++) {
-                        final BlockPos blockPos = new BlockPos(x, SectionPos.sectionToBlockCoord(sectionY, y), z);
+                        final BlockPos blockPos = new BlockPos(SectionPos.sectionToBlockCoord(chunk.locX, x), SectionPos.sectionToBlockCoord(sectionY, y), SectionPos.sectionToBlockCoord(chunk.locZ, z));
 
                         final BlockState state = blockStates.get(x, y, z);
                         if (state.getBlock() != chunk.getBlockIfLoaded(blockPos))
