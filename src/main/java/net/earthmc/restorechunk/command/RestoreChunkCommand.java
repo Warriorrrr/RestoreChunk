@@ -8,6 +8,7 @@ import net.earthmc.restorechunk.object.parsing.ArgumentParser;
 import net.earthmc.restorechunk.object.parsing.ParsingException;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
@@ -21,21 +22,17 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ThreadedLevelLightEngine;
 import net.minecraft.util.Tuple;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkStatus;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
 import net.minecraft.world.level.chunk.PalettedContainerRO;
 import net.minecraft.world.level.chunk.storage.ChunkSerializer;
+import net.minecraft.world.level.chunk.storage.ChunkStorage;
 import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.block.Block;
-import org.bukkit.block.data.BlockData;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -46,7 +43,6 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -55,11 +51,12 @@ import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+@SuppressWarnings("UnstableApiUsage")
 public class RestoreChunkCommand implements CommandExecutor {
     private final RestoreChunkPlugin plugin;
     private final Logger logger;
 
-    private final Map<UUID, Tuple<Integer, PreviewData>> previewMap = new HashMap<>();
+    private final Map<UUID, Tuple<Integer, RestoreData>> previewMap = new HashMap<>();
 
     public RestoreChunkCommand(RestoreChunkPlugin plugin) {
         this.plugin = plugin;
@@ -71,7 +68,7 @@ public class RestoreChunkCommand implements CommandExecutor {
         if (args.length > 0 && "apply".equalsIgnoreCase(args[0]))
             apply(sender);
         else
-            execute(sender, args);
+            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> execute(sender, args));
         return true;
     }
 
@@ -86,174 +83,119 @@ public class RestoreChunkCommand implements CommandExecutor {
             return;
         }
 
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            // Parse args
-            ArgumentParser parsedArgs;
-            try {
-                parsedArgs = ArgumentParser.parse(args);
-            } catch (ParsingException e) {
-                sender.sendMessage(Component.text(e.getMessage(), NamedTextColor.RED));
-                return;
-            }
+        ArgumentParser parsedArgs;
+        try {
+            parsedArgs = ArgumentParser.parse(args);
+        } catch (ParsingException e) {
+            sender.sendMessage(Component.text(e.getMessage(), NamedTextColor.RED));
+            return;
+        }
 
-            final long start = System.currentTimeMillis();
+        final long start = System.currentTimeMillis();
 
-            CompoundTag compoundTag;
-            ChunkPos pos = new ChunkPos(new BlockPos(player.getLocation().getBlockX(), player.getLocation().getBlockY(), player.getLocation().getBlockZ()));
-            LevelChunk chunk = (LevelChunk) ((CraftChunk) player.getChunk()).getHandle(ChunkStatus.FULL);
+        CompoundTag compoundTag;
+        ChunkPos pos = new ChunkPos(new BlockPos(player.getLocation().getBlockX(), player.getLocation().getBlockY(), player.getLocation().getBlockZ()));
+        LevelChunk chunk = (LevelChunk) ((CraftChunk) player.getChunk()).getHandle(ChunkStatus.FULL);
 
-            try {
-                compoundTag = plugin.loadChunk(player.getWorld().getName(), pos);
-            } catch (Exception e) {
-                sender.sendMessage(Component.text("An unknown exception occurred when loading chunk: " + e.getClass().getName() + ": " + e.getMessage(), NamedTextColor.RED));
-                e.printStackTrace();
-                return;
-            }
+        try {
+            compoundTag = plugin.loadChunk(player.getWorld().getName(), pos);
+        } catch (Exception e) {
+            sender.sendMessage(Component.text("An unknown exception occurred when loading chunk: " + e.getClass().getName() + ": " + e.getMessage(), NamedTextColor.RED));
+            e.printStackTrace();
+            return;
+        }
 
-            if (compoundTag == null) {
-                sender.sendMessage(Component.text("Could not find a chunk to restore in the backup.", NamedTextColor.RED));
-                return;
-            }
+        if (compoundTag == null) {
+            sender.sendMessage(Component.text("Could not find a chunk to restore in the backup.", NamedTextColor.RED));
+            return;
+        }
 
-            ServerLevel level = ((CraftWorld) player.getWorld()).getHandle();
-            ChunkMap chunkMap = level.getChunkSource().chunkMap;
+        ServerLevel level = ((CraftWorld) player.getWorld()).getHandle();
+        ChunkMap chunkMap = level.getChunkSource().chunkMap;
 
-            compoundTag = chunkMap.upgradeChunkTag(level.getTypeKey(), chunkMap.overworldDataStorage, compoundTag, chunkMap.generator.getTypeNameForDataFixer(), pos, level);
+        compoundTag = chunkMap.upgradeChunkTag(level.getTypeKey(), chunkMap.overworldDataStorage, compoundTag, chunkMap.generator.getTypeNameForDataFixer(), pos, level);
 
-            List<LevelChunkSection> chunkSections = new ArrayList<>();
+        Map<BlockPos, BlockState> blocks = new HashMap<>();
+        Map<BlockPos, Holder<Biome>> biomes = new HashMap<>();
 
-            for (Tag tag : compoundTag.getList("sections", 10)) {
-                CompoundTag sectionData = (CompoundTag) tag;
-                byte y = sectionData.getByte("Y");
+        for (Tag tag : compoundTag.getList("sections", 10)) {
+            CompoundTag sectionData = (CompoundTag) tag;
+            final byte sectionY = sectionData.getByte("Y");
 
-                PalettedContainer<BlockState> blockStates;
-                PalettedContainer<Holder<Biome>> biomes;
+            PalettedContainer<BlockState> blockStates;
+            PalettedContainer<Holder<Biome>> biomeHolders;
 
-                if (sectionData.contains("block_states", 10)) {
-                    DataResult<PalettedContainer<BlockState>> dataResult = ChunkSerializer.BLOCK_STATE_CODEC.parse(NbtOps.INSTANCE, sectionData.getCompound("block_states")).promotePartial((s) -> logger.error("Error when getting chunk data: " + s));
+            if (sectionData.contains("block_states", 10)) {
+                DataResult<PalettedContainer<BlockState>> dataResult = ChunkSerializer.BLOCK_STATE_CODEC.parse(NbtOps.INSTANCE, sectionData.getCompound("block_states")).promotePartial((s) -> logger.error("Error when getting chunk data: " + s));
 
-                    blockStates = dataResult.getOrThrow(false, logger::error);
-                } else
-                    continue;
+                blockStates = dataResult.getOrThrow(false, logger::error);
+            } else
+                continue;
 
-                Registry<Biome> biomeRegistry = level.registryAccess().registryOrThrow(Registries.BIOME);
-                Codec<PalettedContainerRO<Holder<Biome>>> biomeCodec = PalettedContainer.codecRO(biomeRegistry.asHolderIdMap(), biomeRegistry.holderByNameCodec(), PalettedContainer.Strategy.SECTION_BIOMES, biomeRegistry.getHolderOrThrow(Biomes.PLAINS));
+            Registry<Biome> biomeRegistry = level.registryAccess().registryOrThrow(Registries.BIOME);
+            Codec<PalettedContainerRO<Holder<Biome>>> biomeCodec = PalettedContainer.codecRO(biomeRegistry.asHolderIdMap(), biomeRegistry.holderByNameCodec(), PalettedContainer.Strategy.SECTION_BIOMES, biomeRegistry.getHolderOrThrow(Biomes.PLAINS));
 
-                if (sectionData.contains("biomes", 10)) {
-                    DataResult<PalettedContainerRO<Holder<Biome>>> dataResult = biomeCodec.parse(NbtOps.INSTANCE, sectionData.getCompound("biomes")).promotePartial(s -> logger.error("Error when getting biome data: " + s));
-                    biomes = dataResult.getOrThrow(false, logger::error).recreate();
-                } else
-                    biomes = new PalettedContainer<>(biomeRegistry.asHolderIdMap(), biomeRegistry.getHolderOrThrow(Biomes.PLAINS), PalettedContainer.Strategy.SECTION_BIOMES, null);
+            if (sectionData.contains("biomes", 10)) {
+                DataResult<PalettedContainerRO<Holder<Biome>>> dataResult = biomeCodec.parse(NbtOps.INSTANCE, sectionData.getCompound("biomes")).promotePartial(s -> logger.error("Error when getting biome data: " + s));
+                biomeHolders = dataResult.getOrThrow(false, logger::error).recreate();
+            } else
+                biomeHolders = new PalettedContainer<>(biomeRegistry.asHolderIdMap(), biomeRegistry.getHolderOrThrow(Biomes.PLAINS), PalettedContainer.Strategy.SECTION_BIOMES, null);
 
-                LevelChunkSection chunkSection = new LevelChunkSection(y, blockStates, biomes);
+            for (int y = 0; y < 16; y++) {
+                for (int x = 0; x < 16; x++) {
+                    for (int z = 0; z < 16; z++) {
+                        final BlockPos blockPos = new BlockPos(x, SectionPos.sectionToBlockCoord(sectionY, y), z);
 
-                chunkSections.add(chunkSection);
-            }
+                        final BlockState state = blockStates.get(x, y, z);
+                        if (state.getBlock() != chunk.getBlockIfLoaded(blockPos))
+                            blocks.put(blockPos, state);
 
-            // Loop through chunk sections and set the blocks.
-            Map<Block, BlockData> blocks = new HashMap<>(); // TODO: use nms instances instead of API here
-            Map<BlockPos, Holder<Biome>> biomes = new HashMap<>();
-            for (LevelChunkSection section : chunkSections) {
-                if (section == null)
-                    continue;
-
-                final int sectionY = section.bottomBlockY() >> 4;
-                for (int y = 0; y < 16; y++) {
-                    for (int x = 0; x < 16; x++) {
-                        for (int z = 0; z < 16; z++) {
-                            BlockPos blockPos = new BlockPos(x, SectionPos.sectionToBlockCoord(sectionY, y), z);
-
-                            BlockState state = section.getBlockState(x, y, z);
-                            if (state.getBlock() != chunk.getBlockIfLoaded(blockPos))
-                                blocks.put(CraftBlock.at(level, blockPos), state.createCraftBlockData());
-
-                            try {
-                                biomes.put(blockPos, section.getNoiseBiome(x, y, z));
-                            } catch (ArrayIndexOutOfBoundsException ignored) {}
-                        }
+                        try {
+                            biomes.put(blockPos, biomeHolders.get(x, y, z));
+                        } catch (ArrayIndexOutOfBoundsException ignored) {}
                     }
                 }
             }
+        }
 
-            final List<CompoundTag> blockEntities = compoundTag.getList("block_entities", 10).stream()
-                    .map(tag -> tag.getId() == 10 ? (CompoundTag) tag : new CompoundTag())
-                    .toList();
+        final List<CompoundTag> blockEntities = compoundTag.getList("block_entities", 10).stream()
+                .map(tag -> tag.getId() == 10 ? (CompoundTag) tag : new CompoundTag())
+                .toList();
 
-            final long inhabitedTime = compoundTag.getLong("InhabitedTime");
+        final long inhabitedTime = compoundTag.getLong("InhabitedTime");
 
-            // Filter blocks to included materials
-            if (!parsedArgs.includes().isEmpty()) {
-                blocks.entrySet().removeIf(entry -> {
-                    Predicate<Location> predicate = parsedArgs.includes().get(entry.getValue().getMaterial());
+        // Filter blocks to included materials
+        if (!parsedArgs.includes().isEmpty()) {
+            blocks.entrySet().removeIf(entry -> {
+                Predicate<BlockPos> predicate = parsedArgs.includes().get(entry.getValue().getBlock());
 
-                    return predicate == null || !predicate.test(entry.getKey().getLocation());
-                });
-            }
+                return predicate == null || !predicate.test(entry.getKey());
+            });
+        }
 
-            // Apply predicates
-            if (!parsedArgs.predicates().isEmpty())
-                blocks.keySet().removeIf(block -> !parsedArgs.predicates().stream().allMatch(predicate -> predicate.test(block.getLocation())));
+        // Apply predicates
+        if (!parsedArgs.predicates().isEmpty())
+            blocks.keySet().removeIf(blockPos -> !parsedArgs.predicates().stream().allMatch(predicate -> predicate.test(blockPos)));
 
-            if (parsedArgs.preview() && !blocks.isEmpty()) {
-                int taskId = Bukkit.getScheduler().runTaskLater(plugin, () -> previewMap.remove(player.getUniqueId()), 120 * 20L).getTaskId();
-                previewMap.put(player.getUniqueId(), new Tuple<>(taskId, new PreviewData(level, chunk.getPos(), blocks, biomes, System.currentTimeMillis() - start, blockEntities, inhabitedTime, parsedArgs.relight())));
+        final RestoreData data = new RestoreData(level, chunk.getPos(), blocks, biomes, System.currentTimeMillis() - start, blockEntities, inhabitedTime, parsedArgs);
 
-                player.sendMultiBlockChange(blocks.entrySet().stream().collect(Collectors.toMap(entry -> entry.getKey().getLocation(), Map.Entry::getValue)), true);
-                player.sendMessage(Component.text("You are now previewing a restore, use /restorechunk apply to apply.", NamedTextColor.GREEN));
+        if (parsedArgs.preview() && !blocks.isEmpty()) {
+            int taskId = Bukkit.getScheduler().runTaskLater(plugin, () -> previewMap.remove(player.getUniqueId()), 120 * 20L).getTaskId();
+            previewMap.put(player.getUniqueId(), new Tuple<>(taskId, data));
 
-                return;
-            }
+            player.sendMultiBlockChange(blocks.entrySet().stream().collect(Collectors.toMap(entry -> CraftBlock.at(level, entry.getKey()).getLocation(), entry -> entry.getValue().createCraftBlockData())), true);
+            player.sendMessage(Component.text("You are now previewing a restore, use /restorechunk apply to apply.", NamedTextColor.GREEN));
+            return;
+        }
 
-            chunk.setInhabitedTime(inhabitedTime);
-
-            if (!blocks.isEmpty()) {
-                Bukkit.getScheduler().runTask(plugin, () -> {
-                    chunk.clearAllBlockEntities();
-
-                    for (Map.Entry<Block, BlockData> entry : blocks.entrySet())
-                        entry.getKey().setBlockData(entry.getValue());
-
-                    for (CompoundTag blockEntityTag : blockEntities) {
-                        if (blockEntityTag.getBoolean("keepPacked")) {
-                            chunk.setBlockEntityNbt(blockEntityTag);
-                            continue;
-                        }
-
-                        BlockPos blockPos = BlockEntity.getPosFromTag(blockEntityTag);
-                        BlockEntity entity = BlockEntity.loadStatic(blockPos, chunk.getBlockState(blockPos), blockEntityTag);
-
-                        if (entity != null)
-                            chunk.setBlockEntity(entity);
-                    }
-
-                    chunk.registerAllBlockEntitiesAfterLevelLoad();
-
-                    for (Map.Entry<BlockPos, Holder<Biome>> entry : biomes.entrySet())
-                        chunk.setBiome(entry.getKey().getX() >> 2, entry.getKey().getY() >> 2, entry.getKey().getZ() >> 2, entry.getValue());
-
-                    if (parsedArgs.relight())
-                        relightChunks(level.chunkSource.getLightEngine(), chunk.getPos());
-
-                    if (!biomes.isEmpty())
-                        level.chunkSource.chunkMap.resendBiomesForChunks(List.of(chunk));
-                });
-            }
-
-            player.sendMessage(Component.text("Successfully restored chunk ", NamedTextColor.GREEN)
-                    .append(Component.text(String.format("(%d, %d)", chunk.getPos().x, chunk.getPos().z), NamedTextColor.AQUA))
-                    .append(Component.text(" in "))
-                    .append(Component.text(String.format("%dms", System.currentTimeMillis() - start), NamedTextColor.AQUA))
-                    .append(Component.text(", affecting "))
-                    .append(Component.text(blocks.size(), NamedTextColor.AQUA))
-                    .append(Component.text(" blocks.")));
-        });
+        Bukkit.getScheduler().runTask(plugin, () -> finishRestore(player, data));
     }
 
     public void apply(CommandSender sender) {
         if (!(sender instanceof Player player))
             return;
 
-        Tuple<Integer, PreviewData> tuple = previewMap.remove(player.getUniqueId());
+        Tuple<Integer, RestoreData> tuple = previewMap.remove(player.getUniqueId());
 
         if (tuple == null) {
             sender.sendMessage(Component.text("You have nothing to apply!", NamedTextColor.RED));
@@ -261,50 +203,55 @@ public class RestoreChunkCommand implements CommandExecutor {
         }
 
         Bukkit.getScheduler().cancelTask(tuple.getA());
-        PreviewData data = tuple.getB();
+        finishRestore(player, tuple.getB());
+    }
 
-        LevelChunk chunk = data.level.getChunkIfLoaded(data.chunkPos.x, data.chunkPos.z);
+    private void finishRestore(final @NotNull Player player, final @NotNull RestoreData data) {
+        final LevelChunk chunk = data.level.getChunkIfLoaded(data.chunkPos.x, data.chunkPos.z);
         if (chunk == null) {
-            sender.sendMessage(Component.text("Cannot process restore for an unloaded chunk.", NamedTextColor.RED));
+            player.sendMessage(Component.text("Unable to complete restore due to chunk being unloaded.", NamedTextColor.RED));
             return;
         }
 
-        chunk.setInhabitedTime(data.inhabitedTime());
-        chunk.clearAllBlockEntities();
+        chunk.setInhabitedTime(data.inhabitedTime);
 
-        for (Map.Entry<Block, BlockData> entry : data.blocks.entrySet())
-            entry.getKey().setBlockData(entry.getValue());
+        if (!data.blocks.isEmpty()) {
+            chunk.clearAllBlockEntities();
 
-        for (CompoundTag blockEntityTag : data.blockEntities()) {
-            if (blockEntityTag.getBoolean("keepPacked")) {
-                chunk.setBlockEntityNbt(blockEntityTag);
-                continue;
+            for (Map.Entry<BlockPos, BlockState> entry : data.blocks.entrySet())
+                data.level.setBlockAndUpdate(entry.getKey(), entry.getValue());
+
+            for (CompoundTag blockEntityTag : data.blockEntities()) {
+                if (blockEntityTag.getBoolean("keepPacked")) {
+                    chunk.setBlockEntityNbt(blockEntityTag);
+                    continue;
+                }
+
+                BlockPos blockPos = BlockEntity.getPosFromTag(blockEntityTag);
+                BlockEntity entity = BlockEntity.loadStatic(blockPos, chunk.getBlockState(blockPos), blockEntityTag);
+
+                if (entity != null)
+                    chunk.setBlockEntity(entity);
             }
 
-            BlockPos blockPos = BlockEntity.getPosFromTag(blockEntityTag);
-            BlockEntity entity = BlockEntity.loadStatic(blockPos, chunk.getBlockState(blockPos), blockEntityTag);
+            chunk.registerAllBlockEntitiesAfterLevelLoad();
 
-            if (entity != null)
-                chunk.setBlockEntity(entity);
+            for (Map.Entry<BlockPos, Holder<Biome>> entry : data.biomes.entrySet())
+                chunk.setBiome(entry.getKey().getX() >> 2, entry.getKey().getY() >> 2, entry.getKey().getZ() >> 2, entry.getValue());
+
+            if (data.args.relight())
+                relightChunks(data.level.chunkSource.getLightEngine(), chunk.getPos());
+
+            if (!data.biomes.isEmpty())
+                data.level.chunkSource.chunkMap.resendBiomesForChunks(List.of(chunk));
         }
-
-        chunk.registerAllBlockEntitiesAfterLevelLoad();
-
-        for (Map.Entry<BlockPos, Holder<Biome>> entry : data.biomes.entrySet())
-            chunk.setBiome(entry.getKey().getX() >> 2, entry.getKey().getY() >> 2, entry.getKey().getZ() >> 2, entry.getValue());
-
-        if (data.relight())
-            relightChunks(chunk.level.chunkSource.getLightEngine(), chunk.getPos());
-
-        if (!data.biomes().isEmpty())
-            chunk.level.chunkSource.chunkMap.resendBiomesForChunks(List.of(chunk));
 
         player.sendMessage(Component.text("Successfully restored chunk ", NamedTextColor.GREEN)
                 .append(Component.text(String.format("(%d, %d)", chunk.getPos().x, chunk.getPos().z), NamedTextColor.AQUA))
                 .append(Component.text(" in "))
                 .append(Component.text(String.format("%dms", data.timeTaken()), NamedTextColor.AQUA))
                 .append(Component.text(", affecting "))
-                .append(Component.text(data.blocks().size(), NamedTextColor.AQUA))
+                .append(Component.text(data.blocks.size(), NamedTextColor.AQUA))
                 .append(Component.text(" blocks.")));
     }
 
@@ -312,5 +259,5 @@ public class RestoreChunkCommand implements CommandExecutor {
         lightEngine.relight(new HashSet<>(MCUtil.getSpiralOutChunks(center.getWorldPosition(), 1)), progress -> {}, complete -> {});
     }
 
-    private record PreviewData(Level level, ChunkPos chunkPos, Map<Block, BlockData> blocks, Map<BlockPos, Holder<Biome>> biomes, long timeTaken, List<CompoundTag> blockEntities, long inhabitedTime, boolean relight) {}
+    private record RestoreData(ServerLevel level, ChunkPos chunkPos, Map<BlockPos, BlockState> blocks, Map<BlockPos, Holder<Biome>> biomes, long timeTaken, List<CompoundTag> blockEntities, long inhabitedTime, ArgumentParser args) {}
 }

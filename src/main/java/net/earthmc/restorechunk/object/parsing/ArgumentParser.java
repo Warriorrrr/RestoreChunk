@@ -1,7 +1,11 @@
 package net.earthmc.restorechunk.object.parsing;
 
-import org.bukkit.Location;
-import org.bukkit.Material;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.block.Block;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
@@ -13,14 +17,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ArgumentParser {
-    private static final Predicate<Location> TRUE_PREDICATE = location -> true;
+    private static final Predicate<BlockPos> TRUE_PREDICATE = location -> true;
 
     private static final String PREDICATE_STRING = "([xyz])([<>=%&]|>=|<=)(\\d+|-\\d+)";
     private static final Pattern PREDICATE_PATTERN = Pattern.compile("\\(" + PREDICATE_STRING + "\\)");
     private static final Pattern PREDICATE_PATTERN_NO_PARENTHESIS = Pattern.compile(PREDICATE_STRING);
 
-    private final Map<Material, Predicate<Location>> includeMaterials = new HashMap<>();
-    private final Set<Predicate<Location>> predicates = new HashSet<>();
+    private final Map<Block, Predicate<BlockPos>> includeMaterials = new HashMap<>();
+    private final Set<Predicate<BlockPos>> predicates = new HashSet<>();
     private boolean preview;
     private boolean relight;
 
@@ -29,22 +33,22 @@ public class ArgumentParser {
             if (arg.startsWith("i:") || arg.startsWith("include:")) {
                 String[] blocksToInclude = arg.split(":", 2)[1].split(",");
                 for (String blockName : blocksToInclude) {
-                    Predicate<Location> predicate = parsePredicate(blockName, PREDICATE_PATTERN);
+                    Predicate<BlockPos> predicate = parsePredicate(blockName, PREDICATE_PATTERN);
 
                     if (predicate != null)
                         blockName = PREDICATE_PATTERN.matcher(blockName).replaceAll("").trim();
 
-                    Material material = Material.matchMaterial(blockName);
+                    final Block block = BuiltInRegistries.BLOCK.get(ResourceKey.create(Registries.BLOCK, new ResourceLocation(blockName)));
 
-                    if (material == null || !material.isBlock())
+                    if (block == null)
                         throw new ParsingException("Invalid block type: " + blockName);
 
-                    includeMaterials.put(material, predicate == null ? TRUE_PREDICATE : predicate);
+                    includeMaterials.put(block, predicate == null ? TRUE_PREDICATE : predicate);
                 }
             } else if (arg.startsWith("p:") || arg.startsWith("predicate:")) {
                 String[] predicateArray = arg.split(":", 2)[1].split(",");
                 for (String stringPredicate : predicateArray) {
-                    Predicate<Location> predicate = parsePredicate(stringPredicate, PREDICATE_PATTERN_NO_PARENTHESIS);
+                    Predicate<BlockPos> predicate = parsePredicate(stringPredicate, PREDICATE_PATTERN_NO_PARENTHESIS);
                     if (predicate == null)
                         throw new ParsingException("Invalid predicate format: " + stringPredicate + ". Must be " + PREDICATE_PATTERN.pattern() + ".");
 
@@ -60,7 +64,7 @@ public class ArgumentParser {
     }
 
     @Nullable
-    private Predicate<Location> parsePredicate(String string, Pattern pattern) throws ParsingException {
+    private Predicate<BlockPos> parsePredicate(String string, Pattern pattern) throws ParsingException {
         final Matcher matcher = pattern.matcher(string);
         if (!matcher.find())
             return null;
@@ -72,9 +76,9 @@ public class ArgumentParser {
 
             return (location -> {
                 int block = switch (xyz) {
-                    case "x" -> location.getBlockX();
-                    case "y" -> location.getBlockY();
-                    case "z" -> location.getBlockZ();
+                    case "x" -> location.getX();
+                    case "y" -> location.getY();
+                    case "z" -> location.getZ();
                     default -> throw new RuntimeException("invalid argument: " + xyz);
                 };
 
@@ -106,11 +110,11 @@ public class ArgumentParser {
         return this.relight;
     }
 
-    public Map<Material, Predicate<Location>> includes() {
+    public Map<Block, Predicate<BlockPos>> includes() {
         return this.includeMaterials;
     }
 
-    public Set<Predicate<Location>> predicates() {
+    public Set<Predicate<BlockPos>> predicates() {
         return this.predicates;
     }
 }
