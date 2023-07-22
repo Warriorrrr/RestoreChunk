@@ -30,6 +30,10 @@ tasks {
         dependsOn(reobfJar)
     }
 
+    jar {
+        archiveFileName.set("${project.name}.jar")
+    }
+
     runServer {
         minecraftVersion("1.19.4")
     }
