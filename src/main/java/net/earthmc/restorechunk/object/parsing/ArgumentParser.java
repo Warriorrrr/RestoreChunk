@@ -27,6 +27,7 @@ public class ArgumentParser {
     private final Set<Predicate<BlockPos>> predicates = new HashSet<>();
     private boolean preview;
     private boolean relight;
+    private boolean updateInhabited;
 
     private ArgumentParser(String[] args) throws ParsingException {
         for (String arg : args) {
@@ -58,6 +59,8 @@ public class ArgumentParser {
                 preview = true;
             else if ("#relight".equals(arg))
                 relight = true;
+            else if ("#inhabited".equalsIgnoreCase(arg))
+                updateInhabited = true;
             else
                 throw new ParsingException("Unknown argument: " + arg);
         }
@@ -108,6 +111,10 @@ public class ArgumentParser {
 
     public boolean relight() {
         return this.relight;
+    }
+
+    public boolean updateInhabited() {
+        return this.updateInhabited;
     }
 
     public Map<Block, Predicate<BlockPos>> includes() {

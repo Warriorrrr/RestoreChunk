@@ -213,7 +213,8 @@ public class RestoreChunkCommand implements CommandExecutor {
             return;
         }
 
-        chunk.setInhabitedTime(data.inhabitedTime);
+        if (data.args.updateInhabited())
+            chunk.setInhabitedTime(data.inhabitedTime);
 
         if (!data.blocks.isEmpty()) {
             chunk.clearAllBlockEntities();
