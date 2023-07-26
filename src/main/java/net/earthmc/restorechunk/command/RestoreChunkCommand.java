@@ -177,9 +177,14 @@ public class RestoreChunkCommand implements CommandExecutor {
         if (!parsedArgs.predicates().isEmpty())
             blocks.keySet().removeIf(blockPos -> !parsedArgs.predicates().stream().allMatch(predicate -> predicate.test(blockPos)));
 
+        if (blocks.isEmpty()) {
+            player.sendMessage(Component.text("No blocks were found or changed."));
+            return;
+        }
+
         final RestoreData data = new RestoreData(level, chunk.getPos(), blocks, biomes, System.currentTimeMillis() - start, blockEntities, inhabitedTime, parsedArgs);
 
-        if (parsedArgs.preview() && !blocks.isEmpty()) {
+        if (parsedArgs.preview()) {
             int taskId = Bukkit.getScheduler().runTaskLater(plugin, () -> previewMap.remove(player.getUniqueId()), 120 * 20L).getTaskId();
             previewMap.put(player.getUniqueId(), new Tuple<>(taskId, data));
 
