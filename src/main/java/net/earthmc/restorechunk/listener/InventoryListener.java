@@ -30,7 +30,7 @@ public class InventoryListener implements Listener {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
-        if (event.getClickedInventory() == null || !(event.getClickedInventory().getHolder() instanceof RestoredInventoryHolder holder) || event.getCurrentItem() == null)
+        if (event.getClickedInventory() == null || !(event.getClickedInventory().getHolder(false) instanceof RestoredInventoryHolder holder) || event.getCurrentItem() == null)
             return;
 
         event.setCancelled(true);
