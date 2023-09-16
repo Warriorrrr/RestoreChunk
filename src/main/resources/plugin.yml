@@ -1,9 +1,10 @@
 name: RestoreChunk
 version: '${version}'
 main: net.earthmc.restorechunk.RestoreChunkPlugin
-api-version: 1.18
+api-version: '1.20'
 load: STARTUP
 authors: [ Warriorrr ]
+folia-supported: true
 
 commands:
   restorechunk:

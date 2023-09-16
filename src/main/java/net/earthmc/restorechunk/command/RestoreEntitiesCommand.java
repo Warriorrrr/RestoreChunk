@@ -13,7 +13,6 @@ import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -49,7 +48,7 @@ public class RestoreEntitiesCommand implements CommandExecutor {
             return;
         }
 
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+        plugin.getServer().getAsyncScheduler().runNow(plugin, task -> {
             CompoundTag compoundTag;
             ChunkPos pos = new ChunkPos(new BlockPos(player.getLocation().getBlockX(), player.getLocation().getBlockY(), player.getLocation().getBlockZ()));
 
@@ -57,7 +56,7 @@ public class RestoreEntitiesCommand implements CommandExecutor {
                 compoundTag = plugin.loadEntities(player.getWorld().getName(), pos);
             } catch (Exception e) {
                 sender.sendMessage(Component.text("An unknown exception occurred when loading entity NBT: " + e.getClass().getName() + ": " + e.getMessage(), NamedTextColor.RED));
-                e.printStackTrace();
+                plugin.getSLF4JLogger().warn("An unknown exception occurred when loading entity NBT", e);
                 return;
             }
 

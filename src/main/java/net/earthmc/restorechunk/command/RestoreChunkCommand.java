@@ -2,13 +2,13 @@ package net.earthmc.restorechunk.command;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import io.papermc.paper.util.MCUtil;
 import net.earthmc.restorechunk.RestoreChunkPlugin;
 import net.earthmc.restorechunk.object.parsing.ArgumentParser;
 import net.earthmc.restorechunk.object.parsing.ParsingException;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
@@ -31,14 +31,12 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.PalettedContainer;
 import net.minecraft.world.level.chunk.PalettedContainerRO;
 import net.minecraft.world.level.chunk.storage.ChunkSerializer;
-import net.minecraft.world.level.chunk.storage.ChunkStorage;
-import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.craftbukkit.v1_19_R3.CraftChunk;
-import org.bukkit.craftbukkit.v1_19_R3.CraftWorld;
-import org.bukkit.craftbukkit.v1_19_R3.block.CraftBlock;
+import org.bukkit.craftbukkit.v1_20_R1.CraftChunk;
+import org.bukkit.craftbukkit.v1_20_R1.CraftWorld;
+import org.bukkit.craftbukkit.v1_20_R1.block.CraftBlock;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -48,6 +46,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -56,7 +55,7 @@ public class RestoreChunkCommand implements CommandExecutor {
     private final RestoreChunkPlugin plugin;
     private final Logger logger;
 
-    private final Map<UUID, Tuple<Integer, RestoreData>> previewMap = new HashMap<>();
+    private final Map<UUID, Tuple<ScheduledTask, RestoreData>> previewMap = new HashMap<>();
 
     public RestoreChunkCommand(RestoreChunkPlugin plugin) {
         this.plugin = plugin;
@@ -68,7 +67,7 @@ public class RestoreChunkCommand implements CommandExecutor {
         if (args.length > 0 && "apply".equalsIgnoreCase(args[0]))
             apply(sender);
         else
-            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> execute(sender, args));
+            plugin.getServer().getAsyncScheduler().runNow(plugin, task -> execute(sender, args));
         return true;
     }
 
@@ -101,7 +100,7 @@ public class RestoreChunkCommand implements CommandExecutor {
             compoundTag = plugin.loadChunk(player.getWorld().getName(), pos);
         } catch (Exception e) {
             sender.sendMessage(Component.text("An unknown exception occurred when loading chunk: " + e.getClass().getName() + ": " + e.getMessage(), NamedTextColor.RED));
-            e.printStackTrace();
+            plugin.getSLF4JLogger().warn("An unknown exception occurred when loading chunk", e);
             return;
         }
 
@@ -185,29 +184,29 @@ public class RestoreChunkCommand implements CommandExecutor {
         final RestoreData data = new RestoreData(level, chunk.getPos(), blocks, biomes, System.currentTimeMillis() - start, blockEntities, inhabitedTime, parsedArgs);
 
         if (parsedArgs.preview()) {
-            int taskId = Bukkit.getScheduler().runTaskLater(plugin, () -> previewMap.remove(player.getUniqueId()), 120 * 20L).getTaskId();
-            previewMap.put(player.getUniqueId(), new Tuple<>(taskId, data));
+            ScheduledTask task = plugin.getServer().getAsyncScheduler().runDelayed(plugin, t -> previewMap.remove(player.getUniqueId()), 120L, TimeUnit.SECONDS);
+            previewMap.put(player.getUniqueId(), new Tuple<>(task, data));
 
-            player.sendMultiBlockChange(blocks.entrySet().stream().collect(Collectors.toMap(entry -> CraftBlock.at(level, entry.getKey()).getLocation(), entry -> entry.getValue().createCraftBlockData())), true);
+            player.sendMultiBlockChange(blocks.entrySet().stream().collect(Collectors.toMap(entry -> CraftBlock.at(level, entry.getKey()).getLocation(), entry -> entry.getValue().createCraftBlockData())));
             player.sendMessage(Component.text("You are now previewing a restore, use /restorechunk apply to apply.", NamedTextColor.GREEN));
             return;
         }
 
-        Bukkit.getScheduler().runTask(plugin, () -> finishRestore(player, data));
+        player.getScheduler().run(plugin, task -> finishRestore(player, data), () -> {});
     }
 
     public void apply(CommandSender sender) {
         if (!(sender instanceof Player player))
             return;
 
-        Tuple<Integer, RestoreData> tuple = previewMap.remove(player.getUniqueId());
+        final Tuple<ScheduledTask, RestoreData> tuple = previewMap.remove(player.getUniqueId());
 
         if (tuple == null) {
             sender.sendMessage(Component.text("You have nothing to apply!", NamedTextColor.RED));
             return;
         }
 
-        Bukkit.getScheduler().cancelTask(tuple.getA());
+        tuple.getA().cancel();
         finishRestore(player, tuple.getB());
     }
 
