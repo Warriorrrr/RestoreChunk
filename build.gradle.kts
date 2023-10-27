@@ -2,7 +2,7 @@ plugins {
     java
     `maven-publish`
     id("io.papermc.paperweight.userdev") version "1.5.5"
-    id("xyz.jpenilla.run-paper") version "2.1.0"
+    id("xyz.jpenilla.run-paper") version "2.2.0"
 }
 
 repositories {
@@ -17,12 +17,12 @@ repositories {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.19.4-R0.1-SNAPSHOT")
-    paperweight.paperDevBundle("1.20.1-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:1.20.2-R0.1-SNAPSHOT")
+    paperweight.paperDevBundle("1.20.2-R0.1-SNAPSHOT")
 }
 
-group = "net.earthmc"
-version = "0.0.1"
+group = "dev.warriorrrr"
+version = "1.0.0-SNAPSHOT"
 java.sourceCompatibility = JavaVersion.VERSION_17
 
 tasks {
@@ -31,13 +31,14 @@ tasks {
     }
 
     runServer {
-        minecraftVersion("1.19.4")
+        minecraftVersion("1.20.2")
     }
 
     compileJava {
         options.encoding = Charsets.UTF_8.name()
         options.release.set(17)
     }
+
     javadoc {
         options.encoding = Charsets.UTF_8.name()
     }
@@ -47,8 +48,4 @@ tasks {
 
         expand("version" to project.version)
     }
-}
-
-tasks.withType<JavaCompile> {
-    options.encoding = Charsets.UTF_8.name()
 }
