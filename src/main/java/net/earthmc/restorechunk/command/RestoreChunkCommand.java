@@ -177,7 +177,7 @@ public class RestoreChunkCommand implements CommandExecutor {
             blocks.keySet().removeIf(blockPos -> !parsedArgs.predicates().stream().allMatch(predicate -> predicate.test(blockPos)));
 
         if (blocks.isEmpty()) {
-            player.sendMessage(Component.text("No blocks were found or changed."));
+            player.sendMessage(Component.text("No blocks were found or changed.", NamedTextColor.RED));
             return;
         }
 
