@@ -1,12 +1,12 @@
-package net.earthmc.restorechunk.command;
+package dev.warriorrr.restorechunk.command;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
+import dev.warriorrr.restorechunk.RestoreChunkPlugin;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import io.papermc.paper.util.MCUtil;
-import net.earthmc.restorechunk.RestoreChunkPlugin;
-import net.earthmc.restorechunk.parsing.ArgumentParser;
-import net.earthmc.restorechunk.parsing.ParsingException;
+import dev.warriorrr.restorechunk.parsing.ArgumentParser;
+import dev.warriorrr.restorechunk.parsing.ParsingException;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.minecraft.core.BlockPos;

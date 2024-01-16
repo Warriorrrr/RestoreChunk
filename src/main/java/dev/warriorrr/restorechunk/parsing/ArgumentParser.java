@@ -1,4 +1,4 @@
-package net.earthmc.restorechunk.parsing;
+package dev.warriorrr.restorechunk.parsing;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;

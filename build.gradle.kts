@@ -16,7 +16,7 @@ dependencies {
     paperweight.paperDevBundle("1.20.4-R0.1-SNAPSHOT")
 }
 
-group = "dev.warriorrrr"
+group = "dev.warriorrr"
 version = "1.0.0"
 java.sourceCompatibility = JavaVersion.VERSION_17
 

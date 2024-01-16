@@ -1,6 +1,6 @@
-package net.earthmc.restorechunk;
+package dev.warriorrr.restorechunk;
 
-import net.earthmc.restorechunk.command.RestoreChunkCommand;
+import dev.warriorrr.restorechunk.command.RestoreChunkCommand;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.storage.RegionFileStorage;

@@ -1,6 +1,6 @@
 name: RestoreChunk
 version: '${version}'
-main: net.earthmc.restorechunk.RestoreChunkPlugin
+main: dev.warriorrr.restorechunk.RestoreChunkPlugin
 api-version: '1.20'
 load: STARTUP
 authors: [ Warriorrr ]
