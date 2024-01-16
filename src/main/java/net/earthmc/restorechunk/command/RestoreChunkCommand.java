@@ -33,9 +33,9 @@ import net.minecraft.world.level.chunk.storage.ChunkSerializer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.craftbukkit.v1_20_R2.CraftChunk;
-import org.bukkit.craftbukkit.v1_20_R2.CraftWorld;
-import org.bukkit.craftbukkit.v1_20_R2.block.CraftBlock;
+import org.bukkit.craftbukkit.v1_20_R3.CraftChunk;
+import org.bukkit.craftbukkit.v1_20_R3.CraftWorld;
+import org.bukkit.craftbukkit.v1_20_R3.block.CraftBlock;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -50,7 +50,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-@SuppressWarnings("UnstableApiUsage")
 public class RestoreChunkCommand implements CommandExecutor {
     private final RestoreChunkPlugin plugin;
     private final Logger logger;
@@ -187,6 +186,7 @@ public class RestoreChunkCommand implements CommandExecutor {
         if (parsedArgs.preview()) {
             previewMap.put(player.getUniqueId(), data);
 
+            // noinspection UnstableApiUsage
             player.sendMultiBlockChange(blocks.entrySet().stream().collect(Collectors.toMap(entry -> CraftBlock.at(level, entry.getKey()).getLocation(), entry -> entry.getValue().createCraftBlockData())));
             player.sendMessage(Component.text("You are now previewing a restore, use /restorechunk apply to apply.", NamedTextColor.GREEN));
         } else {

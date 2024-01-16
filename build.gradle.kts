@@ -1,8 +1,8 @@
 plugins {
     java
     `maven-publish`
-    id("io.papermc.paperweight.userdev") version "1.5.5"
-    id("xyz.jpenilla.run-paper") version "2.2.0"
+    id("io.papermc.paperweight.userdev") version "1.5.11"
+    id("xyz.jpenilla.run-paper") version "2.2.2"
 }
 
 repositories {
@@ -10,19 +10,14 @@ repositories {
     maven {
         url = uri("https://papermc.io/repo/repository/maven-public/")
     }
-
-    maven {
-        url = uri("https://repo.maven.apache.org/maven2/")
-    }
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.20.2-R0.1-SNAPSHOT")
-    paperweight.paperDevBundle("1.20.2-R0.1-SNAPSHOT")
+    paperweight.paperDevBundle("1.20.4-R0.1-SNAPSHOT")
 }
 
 group = "dev.warriorrrr"
-version = "1.0.0-SNAPSHOT"
+version = "1.0.0"
 java.sourceCompatibility = JavaVersion.VERSION_17
 
 tasks {
@@ -31,7 +26,7 @@ tasks {
     }
 
     runServer {
-        minecraftVersion("1.20.2")
+        minecraftVersion("1.20.4")
     }
 
     compileJava {
