@@ -11,6 +11,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -39,7 +40,9 @@ public class ArgumentParser {
                     if (predicate != null)
                         blockName = PREDICATE_PATTERN.matcher(blockName).replaceAll("").trim();
 
-                    final Block block = BuiltInRegistries.BLOCK.get(ResourceKey.create(Registries.BLOCK, new ResourceLocation(blockName)));
+                    final Block block = Optional.ofNullable(ResourceLocation.tryParse(blockName))
+                            .map(key -> BuiltInRegistries.BLOCK.get(ResourceKey.create(Registries.BLOCK, key)))
+                            .orElse(null);
 
                     if (block == null)
                         throw new ParsingException("Invalid block type: " + blockName);
