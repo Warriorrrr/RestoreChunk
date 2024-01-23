@@ -140,15 +140,14 @@ public class RestoreChunkCommand implements CommandExecutor {
 
             final PalettedContainer<BlockState> currentChunkStates = chunkBlockStates.get(sectionIndex);
 
-            PalettedContainer<BlockState> blockStates;
-            PalettedContainer<Holder<Biome>> biomeHolders;
+            PalettedContainer<BlockState> blockStates = null;
+            PalettedContainer<Holder<Biome>> biomeHolders = null;
 
             if (sectionData.contains("block_states", 10)) {
                 DataResult<PalettedContainer<BlockState>> dataResult = ChunkSerializer.BLOCK_STATE_CODEC.parse(NbtOps.INSTANCE, sectionData.getCompound("block_states")).promotePartial((s) -> logger.error("Error when getting chunk data: " + s));
 
                 blockStates = dataResult.getOrThrow(false, logger::error);
-            } else
-                continue;
+            }
 
             Registry<Biome> biomeRegistry = level.registryAccess().registryOrThrow(Registries.BIOME);
             Codec<PalettedContainerRO<Holder<Biome>>> biomeCodec = PalettedContainer.codecRO(biomeRegistry.asHolderIdMap(), biomeRegistry.holderByNameCodec(), PalettedContainer.Strategy.SECTION_BIOMES, biomeRegistry.getHolderOrThrow(Biomes.PLAINS));
@@ -156,21 +155,22 @@ public class RestoreChunkCommand implements CommandExecutor {
             if (sectionData.contains("biomes", 10)) {
                 DataResult<PalettedContainerRO<Holder<Biome>>> dataResult = biomeCodec.parse(NbtOps.INSTANCE, sectionData.getCompound("biomes")).promotePartial(s -> logger.error("Error when getting biome data: " + s));
                 biomeHolders = dataResult.getOrThrow(false, logger::error).recreate();
-            } else
-                biomeHolders = new PalettedContainer<>(biomeRegistry.asHolderIdMap(), biomeRegistry.getHolderOrThrow(Biomes.PLAINS), PalettedContainer.Strategy.SECTION_BIOMES, null);
+            }
 
             for (int y = 0; y < 16; y++) {
                 for (int x = 0; x < 16; x++) {
                     for (int z = 0; z < 16; z++) {
                         final BlockPos blockPos = new BlockPos(SectionPos.sectionToBlockCoord(chunkPos.x, x), SectionPos.sectionToBlockCoord(sectionY, y), SectionPos.sectionToBlockCoord(chunkPos.z, z));
 
-                        final BlockState state = blockStates.get(x, y, z);
-                        if (state.getBlock() != currentChunkStates.get(x, y, z).getBlock())
-                            blocks.put(blockPos, state);
+                        if (blockStates != null) {
+                            final BlockState state = blockStates.get(x, y, z);
+                            if (state.getBlock() != currentChunkStates.get(x, y, z).getBlock())
+                                blocks.put(blockPos, state);
+                        }
 
-                        try {
+                        if (biomeHolders != null) {
                             biomes.put(blockPos, biomeHolders.get(x, y, z));
-                        } catch (ArrayIndexOutOfBoundsException ignored) {}
+                        }
                     }
                 }
             }
