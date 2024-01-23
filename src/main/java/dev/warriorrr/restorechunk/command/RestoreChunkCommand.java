@@ -236,6 +236,8 @@ public class RestoreChunkCommand implements CommandExecutor {
             return;
         }
 
+        final long start = System.currentTimeMillis();
+
         if (!data.blocks.isEmpty()) {
             chunk.clearAllBlockEntities();
 
@@ -270,7 +272,7 @@ public class RestoreChunkCommand implements CommandExecutor {
         player.sendMessage(Component.text("Successfully restored chunk ", NamedTextColor.GREEN)
                 .append(Component.text(String.format("(%d, %d)", chunk.getPos().x, chunk.getPos().z), NamedTextColor.AQUA))
                 .append(Component.text(" in "))
-                .append(Component.text(String.format("%dms", data.timeTaken()), NamedTextColor.AQUA))
+                .append(Component.text(String.format("%dms", data.timeTaken() + (System.currentTimeMillis() - start)), NamedTextColor.AQUA))
                 .append(Component.text(", affecting "))
                 .append(Component.text(data.blocks.size(), NamedTextColor.AQUA))
                 .append(Component.text(" blocks.")));
