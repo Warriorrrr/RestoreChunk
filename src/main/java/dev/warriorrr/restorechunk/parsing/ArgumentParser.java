@@ -24,13 +24,15 @@ public class ArgumentParser {
     private static final Pattern PREDICATE_PATTERN = Pattern.compile("\\(" + PREDICATE_STRING + "\\)");
     private static final Pattern PREDICATE_PATTERN_NO_PARENTHESIS = Pattern.compile(PREDICATE_STRING);
 
-    private final Map<Block, Predicate<BlockPos>> includeMaterials = new HashMap<>();
-    private final Set<Predicate<BlockPos>> predicates = new HashSet<>();
-    private boolean preview;
-    private boolean relight;
-    private boolean updateInhabited;
+    private ArgumentParser() {}
 
-    private ArgumentParser(String[] args) throws ParsingException {
+    public static ParseResults parse(String[] args) throws ParsingException {
+        final Map<Block, Predicate<BlockPos>> includeMaterials = new HashMap<>();
+        final Set<Predicate<BlockPos>> predicates = new HashSet<>();
+        boolean preview = false;
+        boolean relight = false;
+        boolean updateInhabited = false;
+
         for (String arg : args) {
             if (arg.startsWith("i:") || arg.startsWith("include:")) {
                 String[] blocksToInclude = arg.split(":", 2)[1].split(",");
@@ -67,10 +69,12 @@ public class ArgumentParser {
             else
                 throw new ParsingException("Unknown argument: " + arg);
         }
+
+        return new ParseResults(preview, relight, updateInhabited, includeMaterials, predicates);
     }
 
     @Nullable
-    private Predicate<BlockPos> parsePredicate(String string, Pattern pattern) throws ParsingException {
+    private static Predicate<BlockPos> parsePredicate(String string, Pattern pattern) throws ParsingException {
         final Matcher matcher = pattern.matcher(string);
         if (!matcher.find())
             return null;
@@ -102,29 +106,5 @@ public class ArgumentParser {
         } catch (Exception e) {
             throw new ParsingException("Invalid predicate: " + matcher.group());
         }
-    }
-
-    public static ArgumentParser parse(String[] args) throws ParsingException {
-        return new ArgumentParser(args);
-    }
-
-    public boolean preview() {
-        return this.preview;
-    }
-
-    public boolean relight() {
-        return this.relight;
-    }
-
-    public boolean updateInhabited() {
-        return this.updateInhabited;
-    }
-
-    public Map<Block, Predicate<BlockPos>> includes() {
-        return this.includeMaterials;
-    }
-
-    public Set<Predicate<BlockPos>> predicates() {
-        return this.predicates;
     }
 }
