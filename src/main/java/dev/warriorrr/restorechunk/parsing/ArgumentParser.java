@@ -31,7 +31,6 @@ public class ArgumentParser {
         final Set<Predicate<BlockPos>> predicates = new HashSet<>();
         boolean preview = false;
         boolean relight = false;
-        boolean updateInhabited = false;
 
         for (String arg : args) {
             if (arg.startsWith("i:") || arg.startsWith("include:")) {
@@ -64,13 +63,11 @@ public class ArgumentParser {
                 preview = true;
             else if ("#relight".equals(arg))
                 relight = true;
-            else if ("#inhabited".equalsIgnoreCase(arg))
-                updateInhabited = true;
             else
                 throw new ParsingException("Unknown argument: " + arg);
         }
 
-        return new ParseResults(preview, relight, updateInhabited, includeMaterials, predicates);
+        return new ParseResults(preview, relight, includeMaterials, predicates);
     }
 
     @Nullable

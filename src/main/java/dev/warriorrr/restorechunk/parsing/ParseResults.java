@@ -7,4 +7,4 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 
-public record ParseResults(boolean preview, boolean relight, boolean updateInhabited, Map<Block, Predicate<BlockPos>> includes, Set<Predicate<BlockPos>> predicates) {}
+public record ParseResults(boolean preview, boolean relight, Map<Block, Predicate<BlockPos>> includes, Set<Predicate<BlockPos>> predicates) {}

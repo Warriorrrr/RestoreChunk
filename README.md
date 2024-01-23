@@ -38,9 +38,6 @@ walking away until the chunk is out of view distance.
 #### `#relight`
 Relights all adjacent chunks, useful if there are lightning issues at the chunk edge.
 
-#### `#inhabited`
-Sets the inhabited time of the chunk back to the old one when included.
-
 ## Permissions
 There is currently only the `restorechunk.command.restorechunk` permission, used for the main command
 and given to operators by default.

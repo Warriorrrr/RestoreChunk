@@ -180,8 +180,6 @@ public class RestoreChunkCommand implements CommandExecutor {
                 .map(tag -> tag.getId() == 10 ? (CompoundTag) tag : new CompoundTag())
                 .toList();
 
-        final long inhabitedTime = chunkTag.getLong("InhabitedTime");
-
         // Filter blocks to included materials
         if (!arguments.includes().isEmpty()) {
             blocks.entrySet().removeIf(entry -> {
@@ -201,7 +199,7 @@ public class RestoreChunkCommand implements CommandExecutor {
         }
 
         final ScheduledTask scheduledTask = plugin.getServer().getAsyncScheduler().runDelayed(plugin, t -> previewMap.remove(player.getUniqueId()), 120L, TimeUnit.SECONDS);
-        final RestoreData data = new RestoreData(scheduledTask, level, chunkPos, blocks, biomes, System.currentTimeMillis() - start, blockEntities, inhabitedTime, arguments);
+        final RestoreData data = new RestoreData(scheduledTask, level, chunkPos, blocks, biomes, System.currentTimeMillis() - start, blockEntities, arguments);
 
         if (arguments.preview()) {
             previewMap.put(player.getUniqueId(), data);
@@ -238,9 +236,6 @@ public class RestoreChunkCommand implements CommandExecutor {
             return;
         }
 
-        if (data.arguments.updateInhabited())
-            chunk.setInhabitedTime(data.inhabitedTime);
-
         if (!data.blocks.isEmpty()) {
             chunk.clearAllBlockEntities();
 
@@ -261,16 +256,16 @@ public class RestoreChunkCommand implements CommandExecutor {
             }
 
             chunk.registerAllBlockEntitiesAfterLevelLoad();
-
-            for (Map.Entry<BlockPos, Holder<Biome>> entry : data.biomes.entrySet())
-                chunk.setBiome(entry.getKey().getX() >> 2, entry.getKey().getY() >> 2, entry.getKey().getZ() >> 2, entry.getValue());
-
-            if (data.arguments.relight())
-                relightChunks(data.level.chunkSource.getLightEngine(), chunk.getPos());
-
-            if (!data.biomes.isEmpty())
-                data.level.chunkSource.chunkMap.resendBiomesForChunks(List.of(chunk));
         }
+
+        for (Map.Entry<BlockPos, Holder<Biome>> entry : data.biomes.entrySet())
+            chunk.setBiome(entry.getKey().getX() >> 2, entry.getKey().getY() >> 2, entry.getKey().getZ() >> 2, entry.getValue());
+
+        if (data.arguments.relight())
+            relightChunks(data.level.chunkSource.getLightEngine(), chunk.getPos());
+
+        if (!data.biomes.isEmpty())
+            data.level.chunkSource.chunkMap.resendBiomesForChunks(List.of(chunk));
 
         player.sendMessage(Component.text("Successfully restored chunk ", NamedTextColor.GREEN)
                 .append(Component.text(String.format("(%d, %d)", chunk.getPos().x, chunk.getPos().z), NamedTextColor.AQUA))
@@ -285,5 +280,5 @@ public class RestoreChunkCommand implements CommandExecutor {
         lightEngine.relight(new HashSet<>(MCUtil.getSpiralOutChunks(center.getWorldPosition(), 1)), progress -> {}, complete -> {});
     }
 
-    private record RestoreData(ScheduledTask task, ServerLevel level, ChunkPos chunkPos, Map<BlockPos, BlockState> blocks, Map<BlockPos, Holder<Biome>> biomes, long timeTaken, List<CompoundTag> blockEntities, long inhabitedTime, ParseResults arguments) {}
+    private record RestoreData(ScheduledTask task, ServerLevel level, ChunkPos chunkPos, Map<BlockPos, BlockState> blocks, Map<BlockPos, Holder<Biome>> biomes, long timeTaken, List<CompoundTag> blockEntities, ParseResults arguments) {}
 }
