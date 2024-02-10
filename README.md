@@ -2,6 +2,9 @@
 
 A plugin used to restore chunks from backups.
 
+## Downloads
+[Modrinth](https://modrinth.com/plugin/restorechunk/versions) | [Hangar](https://hangar.papermc.io/Warrior/RestoreChunk/versions) | [Github](https://github.com/Warriorrrr/RestoreChunk/releases)
+
 ## Usage
 The main command used by the plugin is /restorechunk. To start, you first need to place the
 region file you want to restore from in the `/plugins/RestoreChunk/$world$/region` directory.
