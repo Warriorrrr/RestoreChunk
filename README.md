@@ -1,6 +1,6 @@
 # RestoreChunk
 
-A plugin used to restore chunks from backups.
+A plugin used to restore chunks from region files.
 
 ## Downloads
 [Modrinth](https://modrinth.com/plugin/restorechunk/versions) | [Hangar](https://hangar.papermc.io/Warrior/RestoreChunk/versions) | [Github](https://github.com/Warriorrrr/RestoreChunk/releases)
@@ -23,15 +23,15 @@ Allows you to use the blocks x, y, or z coordinate as a factor for whether it ge
 
 Example: `/restorechunk p:y>70` will only restore blocks above y level 70.
 
-| Operator | Description          |
-|----------|----------------------|
-| \>       | Greater than         |
-| <        | Lesser than          |
-| \>=      | Great than or equal  |
-| <=       | Lesser than or equal |
-| =        | Equals               |
-| %        | Modulo               |
-| &        | Bit mask             |
+| Operator | Description           |
+|----------|-----------------------|
+| \>       | Greater than          |
+| <        | Lesser than           |
+| \>=      | Greater than or equal |
+| <=       | Lesser than or equal  |
+| =        | Equals                |
+| %        | Remainder (true if 0) |
+| &        | Bit mask (true if 0)  |
 
 #### `#preview`
 Allows you to preview the changes without altering the world. You can use `/restorechunk apply` to
