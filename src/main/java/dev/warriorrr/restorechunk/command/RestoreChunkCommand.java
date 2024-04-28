@@ -26,7 +26,7 @@ import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.chunk.ChunkStatus;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
@@ -35,9 +35,9 @@ import net.minecraft.world.level.chunk.storage.ChunkSerializer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.craftbukkit.v1_20_R3.CraftChunk;
-import org.bukkit.craftbukkit.v1_20_R3.CraftWorld;
-import org.bukkit.craftbukkit.v1_20_R3.block.CraftBlock;
+import org.bukkit.craftbukkit.CraftChunk;
+import org.bukkit.craftbukkit.CraftWorld;
+import org.bukkit.craftbukkit.block.CraftBlock;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -106,9 +106,10 @@ public class RestoreChunkCommand implements CommandExecutor {
 
         CompoundTag chunkTag;
         ChunkPos chunkPos = new ChunkPos(new BlockPos(player.getLocation().getBlockX(), player.getLocation().getBlockY(), player.getLocation().getBlockZ()));
+        final ServerLevel level = ((CraftWorld) player.getWorld()).getHandle();
 
         try {
-            chunkTag = plugin.loadChunk(player.getWorld().getName(), chunkPos);
+            chunkTag = plugin.loadChunk(level, chunkPos);
         } catch (IOException e) {
             player.sendMessage(Component.text("An unknown exception occurred when loading chunk: " + e.getClass().getName() + ": " + e.getMessage(), NamedTextColor.RED));
             plugin.getSLF4JLogger().warn("An unknown exception occurred when loading chunk", e);
@@ -120,7 +121,6 @@ public class RestoreChunkCommand implements CommandExecutor {
             return;
         }
 
-        final ServerLevel level = ((CraftWorld) player.getWorld()).getHandle();
         final ChunkMap chunkMap = level.getChunkSource().chunkMap;
 
         chunkTag = chunkMap.upgradeChunkTag(level.getTypeKey(), chunkMap.overworldDataStorage, chunkTag, chunkMap.generator.getTypeNameForDataFixer(), chunkPos, level);
@@ -144,17 +144,17 @@ public class RestoreChunkCommand implements CommandExecutor {
             PalettedContainer<Holder<Biome>> biomeHolders = null;
 
             if (sectionData.contains("block_states", 10)) {
-                DataResult<PalettedContainer<BlockState>> dataResult = ChunkSerializer.BLOCK_STATE_CODEC.parse(NbtOps.INSTANCE, sectionData.getCompound("block_states")).promotePartial((s) -> logger.error("Error when getting chunk data: " + s));
+                DataResult<PalettedContainer<BlockState>> dataResult = ChunkSerializer.BLOCK_STATE_CODEC.parse(NbtOps.INSTANCE, sectionData.getCompound("block_states")).promotePartial((s) -> logger.error("Error when getting chunk data: {}", s));
 
-                blockStates = dataResult.getOrThrow(false, logger::error);
+                blockStates = dataResult.getOrThrow();
             }
 
             Registry<Biome> biomeRegistry = level.registryAccess().registryOrThrow(Registries.BIOME);
             Codec<PalettedContainerRO<Holder<Biome>>> biomeCodec = PalettedContainer.codecRO(biomeRegistry.asHolderIdMap(), biomeRegistry.holderByNameCodec(), PalettedContainer.Strategy.SECTION_BIOMES, biomeRegistry.getHolderOrThrow(Biomes.PLAINS));
 
             if (sectionData.contains("biomes", 10)) {
-                DataResult<PalettedContainerRO<Holder<Biome>>> dataResult = biomeCodec.parse(NbtOps.INSTANCE, sectionData.getCompound("biomes")).promotePartial(s -> logger.error("Error when getting biome data: " + s));
-                biomeHolders = dataResult.getOrThrow(false, logger::error).recreate();
+                DataResult<PalettedContainerRO<Holder<Biome>>> dataResult = biomeCodec.parse(NbtOps.INSTANCE, sectionData.getCompound("biomes")).promotePartial(s -> logger.error("Error when getting biome data: {}", s));
+                biomeHolders = dataResult.getOrThrow().recreate();
             }
 
             for (int y = 0; y < 16; y++) {
@@ -251,7 +251,7 @@ public class RestoreChunkCommand implements CommandExecutor {
                 }
 
                 BlockPos blockPos = BlockEntity.getPosFromTag(blockEntityTag);
-                BlockEntity entity = BlockEntity.loadStatic(blockPos, chunk.getBlockState(blockPos), blockEntityTag);
+                BlockEntity entity = BlockEntity.loadStatic(blockPos, chunk.getBlockState(blockPos), blockEntityTag, data.level.registryAccess());
 
                 if (entity != null)
                     chunk.setBlockEntity(entity);

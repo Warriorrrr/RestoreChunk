@@ -2,8 +2,11 @@ package dev.warriorrr.restorechunk;
 
 import dev.warriorrr.restorechunk.command.RestoreChunkCommand;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.storage.RegionFileStorage;
+import net.minecraft.world.level.chunk.storage.RegionStorageInfo;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -36,12 +39,12 @@ public final class RestoreChunkPlugin extends JavaPlugin {
     }
 
     @Nullable
-    public CompoundTag loadChunk(String worldName, ChunkPos chunkPos) throws IOException {
-        final Path regionDir = dataFolderPath.resolve(worldName).resolve("region");
+    public CompoundTag loadChunk(ServerLevel level, ChunkPos chunkPos) throws IOException {
+        final Path regionDir = dataFolderPath.resolve(level.convertable.getLevelId()).resolve("region");
         if (!Files.exists(regionDir))
             Files.createDirectories(regionDir);
 
-        try (final RegionFileStorage storage = createRegionFileStorage(regionDir)) {
+        try (final RegionFileStorage storage = createRegionFileStorage(level, regionDir)) {
             return storage.read(chunkPos);
         } catch (Throwable throwable) {
             if (throwable instanceof Error err)
@@ -51,8 +54,8 @@ public final class RestoreChunkPlugin extends JavaPlugin {
         }
     }
 
-    private RegionFileStorage createRegionFileStorage(Path path) throws Throwable {
-        return (RegionFileStorage) REGION_FILE_STORAGE_CONSTRUCTOR.invokeExact(path, false);
+    private RegionFileStorage createRegionFileStorage(ServerLevel level, Path path) throws Throwable {
+        return (RegionFileStorage) REGION_FILE_STORAGE_CONSTRUCTOR.invokeExact(new RegionStorageInfo(level.convertable.getLevelId(),level.dimension(), "chunk"), path, false);
     }
 
     public Logger logger() {
@@ -63,7 +66,7 @@ public final class RestoreChunkPlugin extends JavaPlugin {
         MethodHandle temp = null;
 
         try {
-            temp = MethodHandles.privateLookupIn(RegionFileStorage.class, MethodHandles.lookup()).findConstructor(RegionFileStorage.class, MethodType.methodType(void.class, Path.class, boolean.class));
+            temp = MethodHandles.privateLookupIn(RegionFileStorage.class, MethodHandles.lookup()).findConstructor(RegionFileStorage.class, MethodType.methodType(void.class, RegionStorageInfo.class, Path.class, boolean.class));
         } catch (Throwable throwable) {
             CONSTRUCTOR_NOT_FOUND_TRACE = throwable;
         }

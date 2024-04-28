@@ -1,8 +1,8 @@
 plugins {
     java
     `maven-publish`
-    id("io.papermc.paperweight.userdev") version "1.5.11"
-    id("xyz.jpenilla.run-paper") version "2.2.2"
+    id("io.papermc.paperweight.userdev") version "1.6.0"
+    id("xyz.jpenilla.run-paper") version "2.2.4"
 }
 
 repositories {
@@ -13,25 +13,23 @@ repositories {
 }
 
 dependencies {
-    paperweight.paperDevBundle("1.20.4-R0.1-SNAPSHOT")
+    paperweight.paperDevBundle("1.20.5-R0.1-SNAPSHOT")
 }
 
+paperweight.reobfArtifactConfiguration = io.papermc.paperweight.userdev.ReobfArtifactConfiguration.MOJANG_PRODUCTION
+
 group = "dev.warriorrr"
-version = "1.0.1"
-java.sourceCompatibility = JavaVersion.VERSION_17
+version = "1.0.2"
+java.sourceCompatibility = JavaVersion.VERSION_21
 
 tasks {
-    assemble {
-        dependsOn(reobfJar)
-    }
-
     runServer {
-        minecraftVersion("1.20.4")
+        minecraftVersion("1.20.5")
     }
 
     compileJava {
         options.encoding = Charsets.UTF_8.name()
-        options.release.set(17)
+        options.release.set(21)
     }
 
     javadoc {
