@@ -22,7 +22,7 @@ public class ArgumentParser {
 
     private static final String PREDICATE_STRING = "([xyz])([<>=%&]|>=|<=)(\\d+|-\\d+)";
     private static final Pattern PREDICATE_PATTERN = Pattern.compile("\\(" + PREDICATE_STRING + "\\)");
-    private static final Pattern PREDICATE_PATTERN_NO_PARENTHESIS = Pattern.compile(PREDICATE_STRING);
+    private static final Pattern PREDICATE_PATTERN_NO_PARENTHESES = Pattern.compile(PREDICATE_STRING);
 
     private ArgumentParser() {}
 
@@ -53,7 +53,7 @@ public class ArgumentParser {
             } else if (arg.startsWith("p:") || arg.startsWith("predicate:")) {
                 String[] predicateArray = arg.split(":", 2)[1].split(",");
                 for (String stringPredicate : predicateArray) {
-                    Predicate<BlockPos> predicate = parsePredicate(stringPredicate, PREDICATE_PATTERN_NO_PARENTHESIS);
+                    Predicate<BlockPos> predicate = parsePredicate(stringPredicate, PREDICATE_PATTERN_NO_PARENTHESES);
                     if (predicate == null)
                         throw new ParsingException("Invalid predicate format: " + stringPredicate + ". Must be " + PREDICATE_PATTERN.pattern() + ".");
 
