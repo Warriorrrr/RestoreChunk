@@ -123,7 +123,7 @@ public class RestoreChunkCommand implements CommandExecutor {
 
         final ChunkMap chunkMap = level.getChunkSource().chunkMap;
 
-        chunkTag = chunkMap.upgradeChunkTag(level.getTypeKey(), chunkMap.overworldDataStorage, chunkTag, chunkMap.generator.getTypeNameForDataFixer(), chunkPos, level);
+        chunkTag = chunkMap.upgradeChunkTag(chunkTag, chunkPos);
 
         final Map<BlockPos, BlockState> blocks = new HashMap<>();
         final Map<BlockPos, Holder<Biome>> biomes = new HashMap<>();
@@ -279,7 +279,7 @@ public class RestoreChunkCommand implements CommandExecutor {
     }
 
     private void relightChunks(ThreadedLevelLightEngine lightEngine, ChunkPos center) {
-        lightEngine.relight(new HashSet<>(MCUtil.getSpiralOutChunks(center.getWorldPosition(), 1)), progress -> {}, complete -> {});
+        lightEngine.starlight$serverRelightChunks(new HashSet<>(MCUtil.getSpiralOutChunks(center.getWorldPosition(), 1)), progress -> {}, complete -> {});
     }
 
     private record RestoreData(ScheduledTask task, ServerLevel level, ChunkPos chunkPos, Map<BlockPos, BlockState> blocks, Map<BlockPos, Holder<Biome>> biomes, long timeTaken, List<CompoundTag> blockEntities, ParseResults arguments) {}

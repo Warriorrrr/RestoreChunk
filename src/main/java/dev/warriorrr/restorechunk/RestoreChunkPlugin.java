@@ -4,7 +4,6 @@ import dev.warriorrr.restorechunk.command.RestoreChunkCommand;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.storage.RegionFileStorage;
 import net.minecraft.world.level.chunk.storage.RegionStorageInfo;
 import org.bukkit.plugin.java.JavaPlugin;
