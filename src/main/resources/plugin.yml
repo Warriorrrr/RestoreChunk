@@ -1,7 +1,7 @@
 name: RestoreChunk
 version: '${version}'
 main: dev.warriorrr.restorechunk.RestoreChunkPlugin
-api-version: '1.21'
+api-version: '1.21.1'
 load: STARTUP
 authors: [ Warriorrr ]
 folia-supported: true
