@@ -1,6 +1,7 @@
 package dev.warriorrr.restorechunk.parsing;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -42,7 +43,8 @@ public class ArgumentParser {
                         blockName = PREDICATE_PATTERN.matcher(blockName).replaceAll("").trim();
 
                     final Block block = Optional.ofNullable(ResourceLocation.tryParse(blockName))
-                            .map(key -> BuiltInRegistries.BLOCK.get(ResourceKey.create(Registries.BLOCK, key)))
+                            .flatMap(key -> BuiltInRegistries.BLOCK.get(ResourceKey.create(Registries.BLOCK, key)))
+                            .map(Holder.Reference::value)
                             .orElse(null);
 
                     if (block == null)

@@ -39,7 +39,7 @@ public final class RestoreChunkPlugin extends JavaPlugin {
 
     @Nullable
     public CompoundTag loadChunk(ServerLevel level, ChunkPos chunkPos) throws IOException {
-        final Path regionDir = dataFolderPath.resolve(level.convertable.getLevelId()).resolve("region");
+        final Path regionDir = dataFolderPath.resolve(level.levelStorageAccess.getLevelId()).resolve("region");
         if (!Files.exists(regionDir))
             Files.createDirectories(regionDir);
 
@@ -54,7 +54,7 @@ public final class RestoreChunkPlugin extends JavaPlugin {
     }
 
     private RegionFileStorage createRegionFileStorage(ServerLevel level, Path path) throws Throwable {
-        return (RegionFileStorage) REGION_FILE_STORAGE_CONSTRUCTOR.invokeExact(new RegionStorageInfo(level.convertable.getLevelId(),level.dimension(), "chunk"), path, false);
+        return (RegionFileStorage) REGION_FILE_STORAGE_CONSTRUCTOR.invokeExact(new RegionStorageInfo(level.levelStorageAccess.getLevelId(),level.dimension(), "chunk"), path, false);
     }
 
     public Logger logger() {

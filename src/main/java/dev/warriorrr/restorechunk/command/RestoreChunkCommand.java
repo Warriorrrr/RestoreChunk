@@ -31,7 +31,7 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
 import net.minecraft.world.level.chunk.PalettedContainerRO;
-import net.minecraft.world.level.chunk.storage.ChunkSerializer;
+import net.minecraft.world.level.chunk.storage.SerializableChunkData;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -128,7 +128,7 @@ public class RestoreChunkCommand implements CommandExecutor {
         final Map<BlockPos, BlockState> blocks = new HashMap<>();
         final Map<BlockPos, Holder<Biome>> biomes = new HashMap<>();
 
-        final int minSection = SectionPos.blockToSectionCoord(level.getMinBuildHeight());
+        final int minSection = level.getMinSectionY();
 
         for (final Tag tag : chunkTag.getList("sections", 10)) {
             final CompoundTag sectionData = (CompoundTag) tag;
@@ -144,13 +144,11 @@ public class RestoreChunkCommand implements CommandExecutor {
             PalettedContainer<Holder<Biome>> biomeHolders = null;
 
             if (sectionData.contains("block_states", 10)) {
-                DataResult<PalettedContainer<BlockState>> dataResult = ChunkSerializer.BLOCK_STATE_CODEC.parse(NbtOps.INSTANCE, sectionData.getCompound("block_states")).promotePartial((s) -> logger.error("Error when getting chunk data: {}", s));
-
-                blockStates = dataResult.getOrThrow();
+                blockStates = SerializableChunkData.BLOCK_STATE_CODEC.parse(NbtOps.INSTANCE, sectionData.getCompound("block_states")).promotePartial((s) -> logger.error("Error when getting chunk data: {}", s)).getOrThrow();
             }
 
-            Registry<Biome> biomeRegistry = level.registryAccess().registryOrThrow(Registries.BIOME);
-            Codec<PalettedContainerRO<Holder<Biome>>> biomeCodec = PalettedContainer.codecRO(biomeRegistry.asHolderIdMap(), biomeRegistry.holderByNameCodec(), PalettedContainer.Strategy.SECTION_BIOMES, biomeRegistry.getHolderOrThrow(Biomes.PLAINS));
+            Registry<Biome> biomeRegistry = level.registryAccess().lookupOrThrow(Registries.BIOME);
+            Codec<PalettedContainerRO<Holder<Biome>>> biomeCodec = PalettedContainer.codecRO(biomeRegistry.asHolderIdMap(), biomeRegistry.holderByNameCodec(), PalettedContainer.Strategy.SECTION_BIOMES, biomeRegistry.getOrThrow(Biomes.PLAINS));
 
             if (sectionData.contains("biomes", 10)) {
                 DataResult<PalettedContainerRO<Holder<Biome>>> dataResult = biomeCodec.parse(NbtOps.INSTANCE, sectionData.getCompound("biomes")).promotePartial(s -> logger.error("Error when getting biome data: {}", s));
