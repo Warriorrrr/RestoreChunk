@@ -2,12 +2,12 @@ package dev.warriorrr.restorechunk.command;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
-import dev.warriorrr.restorechunk.RestoreChunkPlugin;
-import dev.warriorrr.restorechunk.parsing.ParseResults;
+import dev.warriorrr.restorechunk.RestoreChunk;
+import dev.warriorrr.restorechunk.command.argument.ParseResults;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import io.papermc.paper.util.MCUtil;
-import dev.warriorrr.restorechunk.parsing.ArgumentParser;
-import dev.warriorrr.restorechunk.parsing.ParsingException;
+import dev.warriorrr.restorechunk.command.argument.ArgumentParser;
+import dev.warriorrr.restorechunk.command.argument.ParsingException;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.minecraft.core.BlockPos;
@@ -54,12 +54,12 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class RestoreChunkCommand implements CommandExecutor {
-    private final RestoreChunkPlugin plugin;
+    private final RestoreChunk plugin;
     private final Logger logger;
 
     private final Map<UUID, RestoreData> previewMap = new HashMap<>();
 
-    public RestoreChunkCommand(RestoreChunkPlugin plugin) {
+    public RestoreChunkCommand(RestoreChunk plugin) {
         this.plugin = plugin;
         this.logger = plugin.logger();
     }
@@ -109,7 +109,7 @@ public class RestoreChunkCommand implements CommandExecutor {
         final ServerLevel level = ((CraftWorld) player.getWorld()).getHandle();
 
         try {
-            chunkTag = plugin.loadChunk(level, chunkPos);
+            chunkTag = plugin.chunkReader().readChunkData(level, chunkPos);
         } catch (IOException e) {
             player.sendMessage(Component.text("An unknown exception occurred when loading chunk: " + e.getClass().getName() + ": " + e.getMessage(), NamedTextColor.RED));
             plugin.getSLF4JLogger().warn("An unknown exception occurred when loading chunk", e);

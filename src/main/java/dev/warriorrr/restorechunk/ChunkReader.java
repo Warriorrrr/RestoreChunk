@@ -1,44 +1,49 @@
 package dev.warriorrr.restorechunk;
 
-import dev.warriorrr.restorechunk.command.RestoreChunkCommand;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.storage.RegionFileStorage;
 import net.minecraft.world.level.chunk.storage.RegionStorageInfo;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Objects;
 
-public final class RestoreChunkPlugin extends JavaPlugin {
-
+/**
+ * Handles reading chunks as NBT from the plugin folder.
+ */
+public class ChunkReader {
     private static final MethodHandle REGION_FILE_STORAGE_CONSTRUCTOR;
     private static Throwable CONSTRUCTOR_NOT_FOUND_TRACE = null;
-    private Path dataFolderPath;
 
-    @Override
-    public void onEnable() {
-        getDataFolder().mkdir();
-        this.dataFolderPath = getDataFolder().toPath();
+    private final RestoreChunk plugin;
+    private final Path dataFolderPath;
 
-        if (CONSTRUCTOR_NOT_FOUND_TRACE != null) {
-            logger().error("Could not find the region file storage constructor, the plugin will not work as expected until resolved.", CONSTRUCTOR_NOT_FOUND_TRACE);
-            return;
+    public ChunkReader(final RestoreChunk plugin) {
+        this.plugin = plugin;
+        this.dataFolderPath = plugin.getDataPath();
+
+        try {
+            Files.createDirectory(this.dataFolderPath);
+        } catch (IOException e) {
+            if (!(e instanceof FileAlreadyExistsException)) {
+                plugin.logger().warn("Failed to create the plugin data folder", e);
+            }
         }
 
-        Objects.requireNonNull(getCommand("restorechunk")).setExecutor(new RestoreChunkCommand(this));
+        if (CONSTRUCTOR_NOT_FOUND_TRACE != null) {
+            plugin.logger().error("Could not find the region file storage constructor, the plugin will not be able to work. (Are you up to date?)", CONSTRUCTOR_NOT_FOUND_TRACE);
+        }
     }
 
     @Nullable
-    public CompoundTag loadChunk(ServerLevel level, ChunkPos chunkPos) throws IOException {
+    public CompoundTag readChunkData(ServerLevel level, ChunkPos chunkPos) throws IOException {
         final Path regionDir = dataFolderPath.resolve(level.levelStorageAccess.getLevelId()).resolve("region");
         if (!Files.exists(regionDir))
             Files.createDirectories(regionDir);
@@ -49,16 +54,13 @@ public final class RestoreChunkPlugin extends JavaPlugin {
             if (throwable instanceof Error err)
                 throw err;
 
+            plugin.logger().error("An exception occurred while reading chunk @ {} in world {}.", chunkPos, level.dimension().location());
             return null;
         }
     }
 
     private RegionFileStorage createRegionFileStorage(ServerLevel level, Path path) throws Throwable {
         return (RegionFileStorage) REGION_FILE_STORAGE_CONSTRUCTOR.invokeExact(new RegionStorageInfo(level.levelStorageAccess.getLevelId(),level.dimension(), "chunk"), path, false);
-    }
-
-    public Logger logger() {
-        return this.getSLF4JLogger();
     }
 
     static {

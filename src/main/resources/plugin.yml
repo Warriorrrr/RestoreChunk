@@ -1,6 +1,6 @@
 name: RestoreChunk
 version: '${version}'
-main: dev.warriorrr.restorechunk.RestoreChunkPlugin
+main: dev.warriorrr.restorechunk.RestoreChunk
 api-version: '1.21.4'
 load: STARTUP
 authors: [ Warriorrr ]

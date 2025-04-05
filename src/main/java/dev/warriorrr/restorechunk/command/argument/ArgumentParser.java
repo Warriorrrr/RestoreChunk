@@ -1,4 +1,4 @@
-package dev.warriorrr.restorechunk.parsing;
+package dev.warriorrr.restorechunk.command.argument;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;

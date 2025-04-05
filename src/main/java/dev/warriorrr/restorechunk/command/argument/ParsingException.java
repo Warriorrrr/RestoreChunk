@@ -1,4 +1,4 @@
-package dev.warriorrr.restorechunk.parsing;
+package dev.warriorrr.restorechunk.command.argument;
 
 public class ParsingException extends Exception {
     public ParsingException(String message) {
