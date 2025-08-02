@@ -65,7 +65,7 @@ public class RestoreChunkCommand implements CommandExecutor {
     }
 
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String @NotNull [] args) {
         if (!(sender instanceof Player player)) {
             sender.sendMessage(Component.text("This command cannot be used by console.", NamedTextColor.RED));
             return true;
@@ -130,9 +130,9 @@ public class RestoreChunkCommand implements CommandExecutor {
 
         final int minSection = level.getMinSectionY();
 
-        for (final Tag tag : chunkTag.getList("sections", 10)) {
+        for (final Tag tag : chunkTag.getListOrEmpty("sections")) {
             final CompoundTag sectionData = (CompoundTag) tag;
-            final byte sectionY = sectionData.getByte("Y");
+            final byte sectionY = sectionData.getByteOr("Y", (byte) 0);
 
             final int sectionIndex = sectionY + Math.abs(minSection);
             if (sectionIndex < 0 || sectionIndex >= chunkBlockStates.size())
@@ -143,15 +143,15 @@ public class RestoreChunkCommand implements CommandExecutor {
             PalettedContainer<BlockState> blockStates = null;
             PalettedContainer<Holder<Biome>> biomeHolders = null;
 
-            if (sectionData.contains("block_states", 10)) {
-                blockStates = SerializableChunkData.BLOCK_STATE_CODEC.parse(NbtOps.INSTANCE, sectionData.getCompound("block_states")).promotePartial((s) -> logger.error("Error when getting chunk data: {}", s)).getOrThrow();
+            if (sectionData.contains("block_states")) {
+                blockStates = SerializableChunkData.BLOCK_STATE_CODEC.parse(NbtOps.INSTANCE, sectionData.getCompoundOrEmpty("block_states")).promotePartial((s) -> logger.error("Error when getting chunk data: {}", s)).getOrThrow();
             }
 
             Registry<Biome> biomeRegistry = level.registryAccess().lookupOrThrow(Registries.BIOME);
             Codec<PalettedContainerRO<Holder<Biome>>> biomeCodec = PalettedContainer.codecRO(biomeRegistry.asHolderIdMap(), biomeRegistry.holderByNameCodec(), PalettedContainer.Strategy.SECTION_BIOMES, biomeRegistry.getOrThrow(Biomes.PLAINS));
 
-            if (sectionData.contains("biomes", 10)) {
-                DataResult<PalettedContainerRO<Holder<Biome>>> dataResult = biomeCodec.parse(NbtOps.INSTANCE, sectionData.getCompound("biomes")).promotePartial(s -> logger.error("Error when getting biome data: {}", s));
+            if (sectionData.contains("biomes")) {
+                DataResult<PalettedContainerRO<Holder<Biome>>> dataResult = biomeCodec.parse(NbtOps.INSTANCE, sectionData.getCompoundOrEmpty("biomes")).promotePartial(s -> logger.error("Error when getting biome data: {}", s));
                 biomeHolders = dataResult.getOrThrow().recreate();
             }
 
@@ -174,8 +174,8 @@ public class RestoreChunkCommand implements CommandExecutor {
             }
         }
 
-        final List<CompoundTag> blockEntities = chunkTag.getList("block_entities", 10).stream()
-                .map(tag -> tag.getId() == 10 ? (CompoundTag) tag : new CompoundTag())
+        final List<CompoundTag> blockEntities = chunkTag.getListOrEmpty("block_entities").stream()
+                .map(tag -> tag.asCompound().orElseGet(CompoundTag::new))
                 .toList();
 
         // Filter blocks to included materials
@@ -243,12 +243,12 @@ public class RestoreChunkCommand implements CommandExecutor {
                 data.level.setBlockAndUpdate(entry.getKey(), entry.getValue());
 
             for (CompoundTag blockEntityTag : data.blockEntities()) {
-                if (blockEntityTag.getBoolean("keepPacked")) {
+                if (blockEntityTag.getBooleanOr("keepPacked", false)) {
                     chunk.setBlockEntityNbt(blockEntityTag);
                     continue;
                 }
 
-                BlockPos blockPos = BlockEntity.getPosFromTag(blockEntityTag);
+                BlockPos blockPos = BlockEntity.getPosFromTag(null, blockEntityTag);
                 BlockEntity entity = BlockEntity.loadStatic(blockPos, chunk.getBlockState(blockPos), blockEntityTag, data.level.registryAccess());
 
                 if (entity != null)
