@@ -54,7 +54,7 @@ public class ChunkReader {
             if (throwable instanceof Error err)
                 throw err;
 
-            plugin.logger().error("An exception occurred while reading chunk @ {} in world {}.", chunkPos, level.dimension().location());
+            plugin.logger().error("An exception occurred while reading chunk @ {} in world {}.", chunkPos, level.dimension().identifier());
             return null;
         }
     }

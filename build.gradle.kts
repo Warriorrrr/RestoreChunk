@@ -22,6 +22,10 @@ tasks {
         minecraftVersion(libs.versions.minecraft.get())
     }
 
+    jar {
+        archiveClassifier = libs.versions.minecraft.get()
+    }
+
     compileJava {
         options.encoding = Charsets.UTF_8.name()
         options.release.set(21)

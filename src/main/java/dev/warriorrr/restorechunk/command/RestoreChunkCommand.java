@@ -122,7 +122,7 @@ public class RestoreChunkCommand implements CommandExecutor {
 
         final ChunkMap chunkMap = level.getChunkSource().chunkMap;
 
-        chunkTag = chunkMap.upgradeChunkTag(chunkTag, chunkPos);
+        chunkTag = chunkMap.upgradeChunkTag(chunkTag);
 
         final Map<BlockPos, BlockState> blocks = new HashMap<>();
         final Map<BlockPos, Holder<Biome>> biomes = new HashMap<>();
