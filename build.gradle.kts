@@ -10,7 +10,7 @@ repositories {
 }
 
 dependencies {
-    paperweight.paperDevBundle("1.21.10-R0.1-SNAPSHOT")
+    paperweight.paperDevBundle("${libs.versions.minecraft.get()}-R0.1-SNAPSHOT")
 }
 
 paperweight.reobfArtifactConfiguration = io.papermc.paperweight.userdev.ReobfArtifactConfiguration.MOJANG_PRODUCTION
@@ -19,7 +19,7 @@ java.sourceCompatibility = JavaVersion.VERSION_21
 
 tasks {
     runServer {
-        minecraftVersion("1.21.10")
+        minecraftVersion(libs.versions.minecraft.get())
     }
 
     compileJava {
@@ -30,6 +30,9 @@ tasks {
     processResources {
         filteringCharset = Charsets.UTF_8.name()
 
-        expand("version" to project.version)
+        expand(
+            "version" to "${project.version}+${libs.versions.minecraft.get()}",
+            "minecraft_version" to libs.versions.minecraft.get()
+        )
     }
 }
