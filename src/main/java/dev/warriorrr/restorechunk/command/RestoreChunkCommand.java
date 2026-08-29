@@ -21,6 +21,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ThreadedLevelLightEngine;
+import net.minecraft.util.Util;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
@@ -101,10 +102,10 @@ public class RestoreChunkCommand implements CommandExecutor {
             return;
         }
 
-        final long start = System.currentTimeMillis();
+        final long start = Util.getMillis();
 
         CompoundTag chunkTag;
-        ChunkPos chunkPos = new ChunkPos(new BlockPos(player.getLocation().getBlockX(), player.getLocation().getBlockY(), player.getLocation().getBlockZ()));
+        ChunkPos chunkPos = new ChunkPos(player.getLocation().getBlockX() >> 4, player.getLocation().getBlockZ() >> 4);
         final ServerLevel level = ((CraftWorld) player.getWorld()).getHandle();
 
         try {
@@ -161,7 +162,7 @@ public class RestoreChunkCommand implements CommandExecutor {
             for (int y = 0; y < 16; y++) {
                 for (int x = 0; x < 16; x++) {
                     for (int z = 0; z < 16; z++) {
-                        final BlockPos blockPos = new BlockPos(SectionPos.sectionToBlockCoord(chunkPos.x, x), SectionPos.sectionToBlockCoord(sectionY, y), SectionPos.sectionToBlockCoord(chunkPos.z, z));
+                        final BlockPos blockPos = new BlockPos(SectionPos.sectionToBlockCoord(chunkPos.x(), x), SectionPos.sectionToBlockCoord(sectionY, y), SectionPos.sectionToBlockCoord(chunkPos.z(), z));
 
                         if (blockStates != null) {
                             final BlockState state = blockStates.get(x, y, z);
@@ -200,13 +201,13 @@ public class RestoreChunkCommand implements CommandExecutor {
         }
 
         final ScheduledTask scheduledTask = plugin.getServer().getAsyncScheduler().runDelayed(plugin, t -> previewMap.remove(player.getUniqueId()), 120L, TimeUnit.SECONDS);
-        final RestoreData data = new RestoreData(scheduledTask, level, chunkPos, blocks, biomes, System.currentTimeMillis() - start, blockEntities, arguments);
+        final RestoreData data = new RestoreData(scheduledTask, level, chunkPos, blocks, biomes, Util.getMillis() - start, blockEntities, arguments);
 
         if (arguments.preview()) {
             previewMap.put(player.getUniqueId(), data);
 
             // noinspection UnstableApiUsage
-            player.sendMultiBlockChange(blocks.entrySet().stream().collect(Collectors.toMap(entry -> CraftBlock.at(level, entry.getKey()).getLocation(), entry -> entry.getValue().createCraftBlockData())));
+            player.sendMultiBlockChange(blocks.entrySet().stream().collect(Collectors.toMap(entry -> CraftBlock.at(level, entry.getKey()).getLocation(), entry -> entry.getValue().asBlockData())));
             player.sendMessage(Component.text("You are now previewing a restore, use /restorechunk apply to apply.", NamedTextColor.GREEN));
         } else {
             // Not previewing a restore so we don't need the task after all
@@ -231,13 +232,13 @@ public class RestoreChunkCommand implements CommandExecutor {
     }
 
     private void finishRestore(final @NotNull Player player, final @NotNull RestoreData data) {
-        final LevelChunk chunk = data.level.getChunkIfLoaded(data.chunkPos.x, data.chunkPos.z);
+        final LevelChunk chunk = data.level.getChunkIfLoaded(data.chunkPos.x(), data.chunkPos.z());
         if (chunk == null) {
             player.sendMessage(Component.text("Unable to complete restore due to chunk being unloaded.", NamedTextColor.RED));
             return;
         }
 
-        final long start = System.currentTimeMillis();
+        final long start = Util.getMillis();
 
         if (!data.blocks.isEmpty()) {
             chunk.clearAllBlockEntities();
@@ -261,8 +262,9 @@ public class RestoreChunkCommand implements CommandExecutor {
             chunk.registerAllBlockEntitiesAfterLevelLoad();
         }
 
-        for (Map.Entry<BlockPos, Holder<Biome>> entry : data.biomes.entrySet())
-            chunk.setBiome(entry.getKey().getX() >> 2, entry.getKey().getY() >> 2, entry.getKey().getZ() >> 2, entry.getValue());
+        for (Map.Entry<BlockPos, Holder<Biome>> entry : data.biomes.entrySet()) {
+            chunk.setNoiseBiome(entry.getKey().getX() >> 2, entry.getKey().getY() >> 2, entry.getKey().getZ() >> 2, entry.getValue());
+        }
 
         if (data.arguments.relight())
             relightChunks(data.level.chunkSource.getLightEngine(), chunk.getPos());
@@ -271,9 +273,9 @@ public class RestoreChunkCommand implements CommandExecutor {
             data.level.chunkSource.chunkMap.resendBiomesForChunks(List.of(chunk));
 
         player.sendMessage(Component.text("Successfully restored chunk ", NamedTextColor.GREEN)
-                .append(Component.text(String.format("(%d, %d)", chunk.getPos().x, chunk.getPos().z), NamedTextColor.AQUA))
+                .append(Component.text(String.format("(%d, %d)", chunk.getPos().x(), chunk.getPos().z()), NamedTextColor.AQUA))
                 .append(Component.text(" in "))
-                .append(Component.text(String.format("%dms", data.timeTaken() + (System.currentTimeMillis() - start)), NamedTextColor.AQUA))
+                .append(Component.text(String.format("%dms", data.timeTaken() + (Util.getMillis() - start)), NamedTextColor.AQUA))
                 .append(Component.text(", affecting "))
                 .append(Component.text(data.blocks.size(), NamedTextColor.AQUA))
                 .append(Component.text(" blocks.")));
