@@ -1,7 +1,7 @@
 plugins {
     id("java")
     id("io.papermc.paperweight.userdev") version "2.0.0-beta.22"
-    id("xyz.jpenilla.run-paper") version "3.0.2"
+    id("xyz.jpenilla.run-paper") version "3.1.0"
 }
 
 repositories {
@@ -15,7 +15,13 @@ dependencies {
 
 paperweight.reobfArtifactConfiguration = io.papermc.paperweight.userdev.ReobfArtifactConfiguration.MOJANG_PRODUCTION
 
-java.sourceCompatibility = JavaVersion.VERSION_25
+java {
+    sourceCompatibility = JavaVersion.VERSION_25
+
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
 
 tasks {
     runServer {
@@ -28,7 +34,6 @@ tasks {
 
     compileJava {
         options.encoding = Charsets.UTF_8.name()
-        options.release.set(25)
     }
 
     processResources {
