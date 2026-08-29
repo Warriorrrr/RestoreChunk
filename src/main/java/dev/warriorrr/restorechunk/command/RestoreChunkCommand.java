@@ -266,11 +266,13 @@ public class RestoreChunkCommand implements CommandExecutor {
             chunk.setNoiseBiome(entry.getKey().getX() >> 2, entry.getKey().getY() >> 2, entry.getKey().getZ() >> 2, entry.getValue());
         }
 
-        if (data.arguments.relight())
-            relightChunks(data.level.chunkSource.getLightEngine(), chunk.getPos());
+        if (data.arguments.relight()) {
+            relightChunks(data.level.getChunkSource().getLightEngine(), chunk.getPos());
+        }
 
-        if (!data.biomes.isEmpty())
-            data.level.chunkSource.chunkMap.resendBiomesForChunks(List.of(chunk));
+        if (!data.biomes.isEmpty()) {
+            data.level.getChunkSource().chunkMap.resendBiomesForChunks(List.of(chunk));
+        }
 
         player.sendMessage(Component.text("Successfully restored chunk ", NamedTextColor.GREEN)
                 .append(Component.text(String.format("(%d, %d)", chunk.getPos().x(), chunk.getPos().z()), NamedTextColor.AQUA))
