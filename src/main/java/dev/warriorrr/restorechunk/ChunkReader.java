@@ -44,7 +44,7 @@ public class ChunkReader {
 
     @Nullable
     public CompoundTag readChunkData(ServerLevel level, ChunkPos chunkPos) throws IOException {
-        final Path regionDir = dataFolderPath.resolve(level.bukkitName).resolve("region");
+        final Path regionDir = dataFolderPath.resolve(level.getWorld().getName()).resolve("region");
         if (!Files.exists(regionDir))
             Files.createDirectories(regionDir);
 
@@ -60,7 +60,7 @@ public class ChunkReader {
     }
 
     private RegionFileStorage createRegionFileStorage(ServerLevel level, Path path) throws Throwable {
-        return (RegionFileStorage) REGION_FILE_STORAGE_CONSTRUCTOR.invokeExact(new RegionStorageInfo(level.bukkitName,level.dimension(), "chunk"), path, false);
+        return (RegionFileStorage) REGION_FILE_STORAGE_CONSTRUCTOR.invokeExact(new RegionStorageInfo(level.getWorld().getName(),level.dimension(), "chunk"), path, false);
     }
 
     static {
